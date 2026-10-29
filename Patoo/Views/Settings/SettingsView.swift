@@ -49,11 +49,22 @@ public struct SettingsView: View {
                         .foregroundColor(PatooTheme.textPrimary)
                     
                     HStack(spacing: 16) {
-                        Image("AppLogo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 44, height: 44)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "0E1522"))
+                                .overlay(
+                                    Circle()
+                                        .stroke(Color(hex: "00D2FF").opacity(0.45), lineWidth: 1.5)
+                                )
+                            
+                            Image("MainLogo")
+                                .renderingMode(.original)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .clipShape(Circle())
+                                .padding(3)
+                        }
+                        .frame(width: 44, height: 44)
                         
                         VStack(alignment: .leading, spacing: 2) {
                             HStack(spacing: 8) {

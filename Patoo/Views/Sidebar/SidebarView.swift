@@ -12,7 +12,14 @@ public struct SidebarView: View {
     var updateManager: AppUpdateManager
     var ffmpegManager: FFmpegUpdateManager
     
-    @State private var isHoveringUpdate = false
+    @AppStorage("pinned_modules_csv") private var pinnedModulesCSV: String = ""
+    
+    private var pinnedSections: [NavigationSection] {
+        let keys = pinnedModulesCSV.split(separator: ",").map(String.init)
+        return keys.compactMap { key in
+            NavigationSection(rawValue: key)
+        }
+    }
     
     public init(
         selection: Binding<NavigationSection>,
@@ -30,14 +37,25 @@ public struct SidebarView: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            // App Branding Header
+            // App Branding Header (Sol Üst Logo - Sabit Renkli & Tüm Temalarda Aktif)
             HStack(spacing: 12) {
-                Image("AppLogo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 36, height: 36)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .shadow(color: PatooTheme.cyanGlow.opacity(0.4), radius: 6)
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "0E1522"))
+                        .overlay(
+                            Circle()
+                                .stroke(Color(hex: "00D2FF").opacity(0.45), lineWidth: 1.5)
+                        )
+                        .shadow(color: Color(hex: "00D2FF").opacity(0.35), radius: 6)
+                    
+                    Image("MainLogo")
+                        .renderingMode(.original)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .clipShape(Circle())
+                        .padding(2)
+                }
+                .frame(width: 36, height: 36)
                 
                 VStack(alignment: .leading, spacing: 1) {
                     Text("PATOO")
@@ -78,125 +96,135 @@ public struct SidebarView: View {
                 .background(PatooTheme.borderSubtle)
             
             // Primary 6 Modules Navigation List
-            ScrollView {
-                VStack(spacing: 4) {
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 3) {
                     ForEach(NavigationSection.primarySections) { section in
                         SidebarItemRow(
                             section: section,
                             isSelected: selection == section,
-                            badgeCount: nil,
-                            isPinned: appState.isPinned(section)
-                        ) {
-                            selection = section
-                        }
+                            badge: nil,
+                            isPinned: pinnedSections.contains(section),
+                            onSelect: {
+                                selection = section
+                            },
+                            onTogglePin: {
+                                togglePin(for: section)
+                            }
+                        )
                     }
                     
-                    // Divider separating secondary items
-                    Rectangle()
-                        .fill(PatooTheme.borderSubtle)
-                        .frame(height: 1)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 6)
-                    
-                    // Kuyruk
-                    SidebarItemRow(
-                        section: .queue,
-                        isSelected: selection == .queue,
-                        badgeCount: queueManager.activeCount > 0 ? queueManager.activeCount : nil,
-                        isPinned: false
-                    ) {
-                        selection = .queue
-                    }
-                    
-                    // Ayarlar
-                    SidebarItemRow(
-                        section: .settings,
-                        isSelected: selection == .settings,
-                        badgeCount: nil,
-                        isPinned: false
-                    ) {
-                        selection = .settings
+                    // Secondary Nav / Utilities
+                    VStack(alignment: .leading, spacing: 3) {
+                        Divider()
+                            .background(PatooTheme.borderSubtle)
+                            .padding(.vertical, 6)
+                        
+                        // Queue Row
+                        SidebarItemRow(
+                            section: .queue,
+                            isSelected: selection == .queue,
+                            badge: queueManager.activeCount > 0 ? "\(queueManager.activeCount)" : nil,
+                            isPinned: false,
+                            canPin: false,
+                            onSelect: {
+                                selection = .queue
+                            },
+                            onTogglePin: {}
+                        )
+                        
+                        // Settings Row
+                        SidebarItemRow(
+                            section: .settings,
+                            isSelected: selection == .settings,
+                            badge: nil,
+                            isPinned: false,
+                            canPin: false,
+                            onSelect: {
+                                selection = .settings
+                            },
+                            onTogglePin: {}
+                        )
                     }
                 }
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 10)
                 .padding(.vertical, 10)
             }
             
-            Divider()
-                .background(PatooTheme.borderSubtle)
+            Spacer()
             
-            // Bottom Status & Interactive Engine Button
+            // Footer: Interactive FFmpeg Status Button
             VStack(spacing: 8) {
-                // Check App Update Bar
-                Button(action: {
-                    updateManager.checkForUpdates(showFeedbackIfUpToDate: true)
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(PatooTheme.cyan)
-                        
-                        Text("Uygulama Güncelle")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(PatooTheme.textSecondary)
-                        
-                        Spacer()
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 7)
-                    .background(isHoveringUpdate ? PatooTheme.cyan.opacity(0.12) : PatooTheme.bgCard)
-                    .cornerRadius(6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(isHoveringUpdate ? PatooTheme.cyan.opacity(0.4) : PatooTheme.borderSubtle, lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .onHover { isHoveringUpdate = $0 }
+                Divider()
+                    .background(PatooTheme.borderSubtle)
                 
-                // Interactive FFmpeg Status & Update Button (Yeşil -> Sarı -> Tıkla Güncelle)
-                FFmpegStatusButton(appState: appState, ffmpegManager: ffmpegManager)
+                FFmpegStatusButton(
+                    appState: appState,
+                    ffmpegManager: ffmpegManager
+                )
+                .padding(.horizontal, 12)
+                .padding(.bottom, 12)
+                .padding(.top, 4)
             }
-            .padding(12)
         }
         .frame(width: 220)
         .background(PatooTheme.bgSidebar)
     }
+    
+    private func togglePin(for section: NavigationSection) {
+        var current = pinnedSections
+        if let idx = current.firstIndex(of: section) {
+            current.remove(at: idx)
+        } else {
+            current.append(section)
+        }
+        pinnedModulesCSV = current.map(\.rawValue).joined(separator: ",")
+    }
 }
 
+// MARK: - Sidebar Item Row Component with Pinning Support
 private struct SidebarItemRow: View {
     let section: NavigationSection
     let isSelected: Bool
-    let badgeCount: Int?
-    var isPinned: Bool = false
-    let action: () -> Void
+    let badge: String?
+    let isPinned: Bool
+    var canPin: Bool = true
+    let onSelect: () -> Void
+    let onTogglePin: () -> Void
     
-    @State private var isHovered = false
+    @State private var isHovered: Bool = false
     
     var body: some View {
-        Button(action: action) {
+        Button(action: onSelect) {
             HStack(spacing: 10) {
+                // Section Icon
                 Image(systemName: section.iconName)
-                    .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? PatooTheme.cyan : (isHovered ? PatooTheme.textPrimary : PatooTheme.textSecondary))
                     .frame(width: 20)
                 
+                // Section Title
                 Text(section.title)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? PatooTheme.textPrimary : (isHovered ? PatooTheme.textPrimary : PatooTheme.textSecondary))
                 
                 Spacer()
                 
-                // Pin Indicator
-                if isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.system(size: 8))
-                        .foregroundColor(PatooTheme.cyan.opacity(0.7))
+                // Pin Indicator / Toggle Button
+                if canPin {
+                    Button(action: onTogglePin) {
+                        Image(systemName: isPinned ? "pin.fill" : "pin")
+                            .font(.system(size: 10))
+                            .foregroundColor(isPinned ? PatooTheme.cyan : PatooTheme.textTertiary.opacity(0.6))
+                            .opacity(isPinned || isHovered ? 1 : 0)
+                            .padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help(isPinned ? "Hızlı İşlemlerden Kaldır" : "Hızlı İşlemlere Sabitle")
                 }
                 
-                // Badge Count for Queue
-                if let count = badgeCount, count > 0 {
-                    Text("\(count)")
+                // Queue Count Badge
+                if let badge = badge {
+                    Text(badge)
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(.black)
                         .padding(.horizontal, 6)
@@ -206,11 +234,13 @@ private struct SidebarItemRow: View {
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(isSelected ? PatooTheme.cyan.opacity(0.12) : (isHovered ? PatooTheme.bgCardHover : Color.clear))
-            .cornerRadius(6)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected ? PatooTheme.cyan.opacity(0.12) : (isHovered ? PatooTheme.bgCardHover : Color.clear))
+            )
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(isSelected ? PatooTheme.cyan.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
