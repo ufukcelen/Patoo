@@ -254,6 +254,15 @@ public enum CoreLogicTests {
         }
         print("[PatooTests] Version regex tests: OK")
         
+        // Test 10: AppTheme & ThemeColors
+        assert(AppTheme.allCases.count == 3)
+        assert(AppTheme.standard.rawValue == "varsayilan")
+        assert(AppTheme.gece.rawValue == "gece")
+        assert(AppTheme.cam.rawValue == "cam")
+        assert(ThemeColors.gece.isGlass == false)
+        assert(ThemeColors.cam.isGlass == true)
+        print("[PatooTests] Theme management: OK")
+        
         print("[PatooTests] TÜM TESTLER BAŞARIYLA TAMAMLANDI! ✅")
     }
 }

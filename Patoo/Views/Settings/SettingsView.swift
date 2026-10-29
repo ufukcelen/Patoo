@@ -9,6 +9,7 @@ public struct SettingsView: View {
     var appState: AppState
     var updateManager: AppUpdateManager
     var ffmpegManager: FFmpegUpdateManager
+    var themeManager: ThemeManager
     
     @AppStorage("custom_ffmpeg_path") private var customFFmpegPath: String = ""
     @AppStorage("custom_ffprobe_path") private var customFFprobePath: String = ""
@@ -18,11 +19,13 @@ public struct SettingsView: View {
     public init(
         appState: AppState,
         updateManager: AppUpdateManager = .shared,
-        ffmpegManager: FFmpegUpdateManager = .shared
+        ffmpegManager: FFmpegUpdateManager = .shared,
+        themeManager: ThemeManager = .shared
     ) {
         self.appState = appState
         self.updateManager = updateManager
         self.ffmpegManager = ffmpegManager
+        self.themeManager = themeManager
     }
     
     public var body: some View {
@@ -34,7 +37,7 @@ public struct SettingsView: View {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    Text("FFmpeg altyapısı, otomatik güncellemeler ve donanım optimizasyonları.")
+                    Text("Görünüm temaları, FFmpeg altyapısı ve donanım optimizasyonları.")
                         .font(.system(size: 13))
                         .foregroundColor(PatooTheme.textSecondary)
                 }
@@ -101,6 +104,34 @@ public struct SettingsView: View {
                                 .cornerRadius(6)
                             }
                             .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(18)
+                .patooCard()
+                
+                // MARK: - Temalar (Görünüm Seçenekleri)
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Temalar")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        Text("Patoo arayüzünün renk paletini ve görsel derinliğini özelleştirin.")
+                            .font(.system(size: 11))
+                            .foregroundColor(PatooTheme.textSecondary)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        ForEach(AppTheme.allCases) { theme in
+                            ThemeSelectionCard(
+                                theme: theme,
+                                isSelected: themeManager.currentTheme == theme
+                            ) {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    themeManager.currentTheme = theme
+                                }
+                            }
                         }
                     }
                 }

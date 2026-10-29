@@ -5,72 +5,93 @@
 
 import SwiftUI
 
-enum PatooTheme {
-    // MARK: - Color Palette
-    // Deep dark navy and near-black surfaces
-    static let bgDark = Color(red: 0.043, green: 0.055, blue: 0.078)        // #0B0E14
-    static let bgSidebar = Color(red: 0.055, green: 0.071, blue: 0.102)     // #0E121A
-    static let bgCard = Color(red: 0.086, green: 0.114, blue: 0.165)        // #161D2A
-    static let bgCardHover = Color(red: 0.114, green: 0.149, blue: 0.216)   // #1D2637
-    static let bgInput = Color(red: 0.067, green: 0.086, blue: 0.125)       // #111620
+public enum PatooTheme {
+    // MARK: - Dynamic Color Palette from ThemeManager
+    public static var bgDark: Color { ThemeManager.shared.colors.bgDark }
+    public static var bgSidebar: Color { ThemeManager.shared.colors.bgSidebar }
+    public static var bgCard: Color { ThemeManager.shared.colors.bgCard }
+    public static var bgCardHover: Color { ThemeManager.shared.colors.bgCardHover }
+    public static var bgInput: Color { ThemeManager.shared.colors.bgInput }
     
-    // Accents: Electric Blue / Cyan & Neon Violet
-    static let cyan = Color(red: 0.000, green: 0.824, blue: 1.000)          // #00D2FF
-    static let cyanGlow = Color(red: 0.000, green: 0.824, blue: 1.000).opacity(0.3)
-    static let blue = Color(red: 0.039, green: 0.518, blue: 1.000)          // #0A84FF
-    static let violet = Color(red: 0.545, green: 0.361, blue: 0.965)        // #8B5CF6
-    static let purpleGlow = Color(red: 0.545, green: 0.361, blue: 0.965).opacity(0.3)
+    // Accents
+    public static var cyan: Color { ThemeManager.shared.colors.cyan }
+    public static var cyanGlow: Color { ThemeManager.shared.colors.cyanGlow }
+    public static var blue: Color { ThemeManager.shared.colors.blue }
+    public static var violet: Color { ThemeManager.shared.colors.violet }
+    public static var purpleGlow: Color { ThemeManager.shared.colors.purpleGlow }
     
     // Status colors
-    static let success = Color(red: 0.180, green: 0.835, blue: 0.451)       // #2ED573
-    static let warning = Color(red: 1.000, green: 0.650, blue: 0.150)       // #FFA526
-    static let danger = Color(red: 1.000, green: 0.280, blue: 0.350)        // #FF4757
-    static let info = Color(red: 0.200, green: 0.600, blue: 1.000)
+    public static var success: Color { ThemeManager.shared.colors.success }
+    public static var warning: Color { ThemeManager.shared.colors.warning }
+    public static var danger: Color { ThemeManager.shared.colors.danger }
+    public static var info: Color { ThemeManager.shared.colors.info }
     
     // Text colors
-    static let textPrimary = Color.white
-    static let textSecondary = Color(white: 0.72)
-    static let textTertiary = Color(white: 0.46)
+    public static var textPrimary: Color { ThemeManager.shared.colors.textPrimary }
+    public static var textSecondary: Color { ThemeManager.shared.colors.textSecondary }
+    public static var textTertiary: Color { ThemeManager.shared.colors.textTertiary }
     
     // Borders
-    static let borderSubtle = Color.white.opacity(0.07)
-    static let borderCyan = cyan.opacity(0.35)
-    static let borderActive = cyan.opacity(0.8)
+    public static var borderSubtle: Color { ThemeManager.shared.colors.borderSubtle }
+    public static var borderCyan: Color { ThemeManager.shared.colors.borderCyan }
+    public static var borderActive: Color { ThemeManager.shared.colors.borderActive }
     
     // Gradients
-    static let cyanVioletGradient = LinearGradient(
-        colors: [cyan, violet],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    public static var cyanVioletGradient: LinearGradient {
+        LinearGradient(
+            colors: [cyan, violet],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
     
-    static let cardGradient = LinearGradient(
-        colors: [bgCard, bgCard.opacity(0.85)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    public static var cardGradient: LinearGradient {
+        LinearGradient(
+            colors: [bgCard, bgCard.opacity(0.85)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 }
 
 // MARK: - View Modifiers & Styles
-struct PatooCardModifier: ViewModifier {
+public struct PatooCardModifier: ViewModifier {
     var isHovered: Bool = false
     var cornerRadius: CGFloat = 10
     
-    func body(content: Content) -> some View {
+    public func body(content: Content) -> some View {
+        let isGlass = ThemeManager.shared.colors.isGlass
+        
         content
             .background(
-                RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(isHovered ? PatooTheme.bgCardHover : PatooTheme.bgCard)
+                Group {
+                    if isGlass {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(isHovered ? PatooTheme.bgCardHover : PatooTheme.bgCard)
+                            .background(
+                                RoundedRectangle(cornerRadius: cornerRadius)
+                                    .fill(.ultraThinMaterial.opacity(0.65))
+                            )
+                    } else {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(isHovered ? PatooTheme.bgCardHover : PatooTheme.bgCard)
+                    }
+                }
             )
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(isHovered ? PatooTheme.borderCyan : PatooTheme.borderSubtle, lineWidth: 1)
             )
+            .shadow(
+                color: isGlass ? Color.black.opacity(0.35) : Color.black.opacity(0.18),
+                radius: isGlass ? 10 : 4,
+                y: isGlass ? 5 : 2
+            )
     }
 }
 
 extension View {
-    func patooCard(isHovered: Bool = false, cornerRadius: CGFloat = 10) -> some View {
+    public func patooCard(isHovered: Bool = false, cornerRadius: CGFloat = 10) -> some View {
         modifier(PatooCardModifier(isHovered: isHovered, cornerRadius: cornerRadius))
     }
 }
