@@ -10,6 +10,7 @@ public struct SidebarView: View {
     var queueManager: QueueManager
     var appState: AppState
     var updateManager: AppUpdateManager
+    var ffmpegManager: FFmpegUpdateManager
     
     @State private var isHoveringUpdate = false
     
@@ -17,12 +18,14 @@ public struct SidebarView: View {
         selection: Binding<NavigationSection>,
         queueManager: QueueManager,
         appState: AppState,
-        updateManager: AppUpdateManager = .shared
+        updateManager: AppUpdateManager = .shared,
+        ffmpegManager: FFmpegUpdateManager = .shared
     ) {
         self._selection = selection
         self.queueManager = queueManager
         self.appState = appState
         self.updateManager = updateManager
+        self.ffmpegManager = ffmpegManager
     }
     
     public var body: some View {
@@ -60,22 +63,24 @@ public struct SidebarView: View {
                 }) {
                     Image(systemName: "sparkles")
                         .font(.system(size: 12))
-                        .foregroundColor(PatooTheme.textTertiary)
+                        .foregroundColor(PatooTheme.cyan)
                         .padding(6)
                         .background(PatooTheme.bgCard)
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .help("Sürüm Yenilikleri")
+                .help("Yenilikleri Görüntüle")
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 20)
-            .padding(.bottom, 20)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 16)
             
-            // Primary Navigation Items (The 6 Main Menus)
+            Divider()
+                .background(PatooTheme.borderSubtle)
+            
+            // Primary 6 Modules Navigation List
             ScrollView {
                 VStack(spacing: 4) {
-                    ForEach(NavigationSection.allCases.filter { $0.isPrimaryMenuItem }) { section in
+                    ForEach(NavigationSection.primarySections) { section in
                         SidebarItemRow(
                             section: section,
                             isSelected: selection == section,
@@ -86,49 +91,54 @@ public struct SidebarView: View {
                         }
                     }
                     
-                    Divider()
-                        .background(PatooTheme.borderSubtle)
+                    // Divider separating secondary items
+                    Rectangle()
+                        .fill(PatooTheme.borderSubtle)
+                        .frame(height: 1)
                         .padding(.vertical, 8)
                         .padding(.horizontal, 6)
                     
-                    // Queue & Settings
+                    // Kuyruk
                     SidebarItemRow(
                         section: .queue,
                         isSelected: selection == .queue,
-                        badgeCount: (queueManager.pendingCount + (queueManager.isProcessing ? 1 : 0)),
-                        isPinned: appState.isPinned(.queue)
+                        badgeCount: queueManager.activeCount > 0 ? queueManager.activeCount : nil,
+                        isPinned: false
                     ) {
                         selection = .queue
                     }
                     
+                    // Ayarlar
                     SidebarItemRow(
                         section: .settings,
                         isSelected: selection == .settings,
                         badgeCount: nil,
-                        isPinned: appState.isPinned(.settings)
+                        isPinned: false
                     ) {
                         selection = .settings
                     }
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 10)
             }
             
-            Spacer()
+            Divider()
+                .background(PatooTheme.borderSubtle)
             
-            // Update & Status Area
+            // Bottom Status & Interactive Engine Button
             VStack(spacing: 8) {
-                // Update Button
+                // Check App Update Bar
                 Button(action: {
                     updateManager.checkForUpdates(showFeedbackIfUpToDate: true)
                 }) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundColor(PatooTheme.cyan)
                         
-                        Text("Güncelleme Denetle")
+                        Text("Uygulama Güncelle")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(PatooTheme.textPrimary)
+                            .foregroundColor(PatooTheme.textSecondary)
                         
                         Spacer()
                     }
@@ -144,32 +154,8 @@ public struct SidebarView: View {
                 .buttonStyle(.plain)
                 .onHover { isHoveringUpdate = $0 }
                 
-                // Engine Status Indicator at bottom
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(appState.ffmpegInstallation.isReady ? PatooTheme.success : PatooTheme.warning)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: (appState.ffmpegInstallation.isReady ? PatooTheme.success : PatooTheme.warning).opacity(0.6), radius: 3)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(appState.ffmpegInstallation.isReady ? "FFmpeg Hazır" : "FFmpeg Eksik")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(PatooTheme.textPrimary)
-                        
-                        Text(appState.ffmpegInstallation.isReady ? "Sistem Aktif" : "Ayarları Kontrol Edin")
-                            .font(.system(size: 10))
-                            .foregroundColor(PatooTheme.textTertiary)
-                    }
-                    
-                    Spacer()
-                }
-                .padding(10)
-                .background(PatooTheme.bgCard)
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(PatooTheme.borderSubtle, lineWidth: 1)
-                )
+                // Interactive FFmpeg Status & Update Button (Yeşil -> Sarı -> Tıkla Güncelle)
+                FFmpegStatusButton(appState: appState, ffmpegManager: ffmpegManager)
             }
             .padding(12)
         }
@@ -193,36 +179,36 @@ private struct SidebarItemRow: View {
                 Image(systemName: section.iconName)
                     .font(.system(size: 13, weight: isSelected ? .bold : .medium))
                     .foregroundColor(isSelected ? PatooTheme.cyan : (isHovered ? PatooTheme.textPrimary : PatooTheme.textSecondary))
-                    .frame(width: 18)
+                    .frame(width: 20)
                 
                 Text(section.title)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(isSelected ? PatooTheme.textPrimary : (isHovered ? PatooTheme.textPrimary : PatooTheme.textSecondary))
                 
                 Spacer()
                 
-                if isPinned && section.isPinnable {
+                // Pin Indicator
+                if isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 9))
+                        .font(.system(size: 8))
                         .foregroundColor(PatooTheme.cyan.opacity(0.7))
                 }
                 
+                // Badge Count for Queue
                 if let count = badgeCount, count > 0 {
                     Text("\(count)")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(isSelected ? .black : PatooTheme.cyan)
+                        .foregroundColor(.black)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(isSelected ? PatooTheme.cyan : PatooTheme.cyan.opacity(0.15))
+                        .background(PatooTheme.cyan)
                         .clipShape(Capsule())
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? PatooTheme.bgCardHover : (isHovered ? PatooTheme.bgCard.opacity(0.5) : Color.clear))
-            )
+            .padding(.vertical, 7)
+            .background(isSelected ? PatooTheme.cyan.opacity(0.12) : (isHovered ? PatooTheme.bgCardHover : Color.clear))
+            .cornerRadius(6)
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
                     .stroke(isSelected ? PatooTheme.cyan.opacity(0.3) : Color.clear, lineWidth: 1)

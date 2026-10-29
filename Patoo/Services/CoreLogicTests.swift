@@ -232,6 +232,28 @@ public enum CoreLogicTests {
         assert(parsedMeta.primaryAudio?.channels == 2)
         print("[PatooTests] FFprobe JSON decoding: OK")
         
+        // Test 9: FFmpeg Location & Version Extraction
+        let sampleOutput1 = "ffmpeg version 7.1 Copyright (c) 2000-2024 the FFmpeg developers"
+        let sampleOutput2 = "ffmpeg version 9.0.2-evermeet.cx"
+        
+        let pattern = #"version\s+([0-9]+(?:\.[0-9]+)*)"#
+        let regex = try! NSRegularExpression(pattern: pattern, options: .caseInsensitive)
+        
+        if let match1 = regex.firstMatch(in: sampleOutput1, range: NSRange(sampleOutput1.startIndex..., in: sampleOutput1)),
+           let r1 = Range(match1.range(at: 1), in: sampleOutput1) {
+            assert(String(sampleOutput1[r1]) == "7.1")
+        } else {
+            assertionFailure("Regex version 7.1 failed")
+        }
+        
+        if let match2 = regex.firstMatch(in: sampleOutput2, range: NSRange(sampleOutput2.startIndex..., in: sampleOutput2)),
+           let r2 = Range(match2.range(at: 1), in: sampleOutput2) {
+            assert(String(sampleOutput2[r2]) == "9.0.2")
+        } else {
+            assertionFailure("Regex version 9.0.2 failed")
+        }
+        print("[PatooTests] Version regex tests: OK")
+        
         print("[PatooTests] TÜM TESTLER BAŞARIYLA TAMAMLANDI! ✅")
     }
 }

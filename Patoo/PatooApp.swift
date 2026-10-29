@@ -11,6 +11,11 @@ struct PatooApp: App {
         #if DEBUG
         _ = CoreLogicTests.runAllTests()
         #endif
+        
+        // Check FFmpeg updates and installation on every app launch
+        Task { @MainActor in
+            FFmpegUpdateManager.shared.checkUpdateOnLaunch(appState: AppState.shared)
+        }
     }
     
     var body: some Scene {

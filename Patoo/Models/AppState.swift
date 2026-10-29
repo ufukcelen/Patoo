@@ -57,6 +57,8 @@ public enum NavigationSection: String, CaseIterable, Identifiable, Sendable {
         }
     }
     
+    public static let primarySections: [NavigationSection] = [.overview, .convert, .compress, .audioStudio, .batch, .mediaInfo]
+    
     public var isPrimaryMenuItem: Bool {
         switch self {
         case .overview, .convert, .compress, .audioStudio, .batch, .mediaInfo:

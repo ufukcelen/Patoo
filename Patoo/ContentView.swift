@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var appState = AppState.shared
     @State private var queueManager = QueueManager.shared
     @State private var updateManager = AppUpdateManager.shared
+    @State private var ffmpegManager = FFmpegUpdateManager.shared
     
     var body: some View {
         HStack(spacing: 0) {
@@ -17,7 +18,8 @@ struct ContentView: View {
                 selection: $appState.selectedSection,
                 queueManager: queueManager,
                 appState: appState,
-                updateManager: updateManager
+                updateManager: updateManager,
+                ffmpegManager: ffmpegManager
             )
             
             Divider()
@@ -66,7 +68,11 @@ struct ContentView: View {
                     case .queue:
                         QueueView(queueManager: queueManager)
                     case .settings:
-                        SettingsView(appState: appState, updateManager: updateManager)
+                        SettingsView(
+                            appState: appState,
+                            updateManager: updateManager,
+                            ffmpegManager: ffmpegManager
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -89,8 +95,8 @@ struct ContentView: View {
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(toast.isError ? PatooTheme.danger.opacity(0.5) : PatooTheme.cyan.opacity(0.5), lineWidth: 1)
                     )
-                    .shadow(color: Color.black.opacity(0.3), radius: 10, y: 5)
-                    .padding(.bottom, 24)
+                    .shadow(color: Color.black.opacity(0.4), radius: 8, y: 4)
+                    .padding(.bottom, 20)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -98,11 +104,11 @@ struct ContentView: View {
         .frame(minWidth: 980, minHeight: 640)
         .background(PatooTheme.bgDark)
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $updateManager.showWhatsNewModal) {
-            WhatsNewSheet(updateManager: updateManager)
-        }
         .sheet(isPresented: $updateManager.showUpdateModal) {
             AppUpdateSheet(updateManager: updateManager)
+        }
+        .sheet(isPresented: $updateManager.showWhatsNewModal) {
+            WhatsNewSheet(updateManager: updateManager)
         }
     }
 }

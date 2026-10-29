@@ -26,6 +26,10 @@ public final class QueueManager {
         return jobs.first(where: { $0.id == id })
     }
     
+    public var activeCount: Int {
+        isProcessing ? (pendingCount + 1) : pendingCount
+    }
+    
     public var pendingCount: Int {
         jobs.filter { $0.status == .pending }.count
     }
