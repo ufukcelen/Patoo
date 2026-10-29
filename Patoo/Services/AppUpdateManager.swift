@@ -46,7 +46,7 @@ public struct ReleaseChangelog: Identifiable, Sendable {
 public final class AppUpdateManager {
     public static let shared = AppUpdateManager()
     
-    public static let currentVersion: String = "0.0.4"
+    public static let currentVersion: String = "0.0.5"
     public static let repoOwner: String = "ufukcelen"
     public static let repoName: String = "Patoo"
     public static let repoURL = URL(string: "https://github.com/ufukcelen/Patoo")!
@@ -78,39 +78,33 @@ public final class AppUpdateManager {
     // MARK: - Current Version Changelog
     public var currentChangelog: ReleaseChangelog {
         ReleaseChangelog(
-            version: "v0.0.4",
+            version: "v0.0.5",
             releaseDate: "Ekim 2026",
-            title: "Yeni Menü Mimarisi & Gelişmiş Medya Araçları",
+            title: "Temalar Sistemi, Otomatik FFmpeg & Yeni Maskot",
             features: [
                 .init(
-                    icon: "square.grid.2x2",
-                    title: "Kişiselleştirilebilir Hızlı Eylemler",
-                    description: "Genel Bakış hızlı eylemleri artık temiz başlar; istediğiniz menüden 📌 butonuyla sabitleyip kaldırabilirsiniz.",
+                    icon: "paintpalette.fill",
+                    title: "Temalar Sistemi (Varsayılan, Gece & Cam)",
+                    description: "Ayarlar altından tek tıkla Siber Koyu, Dark Neo (Gece) ve Liquid Glass (Cam) temaları arasında geçiş yapın.",
+                    badge: "YENİ"
+                ),
+                .init(
+                    icon: "arrow.triangle.2.circlepath.circle.fill",
+                    title: "Dinamik FFmpeg Durumu & Güncelleyici",
+                    description: "Yeni FFmpeg sürümü çıktığında durum rozeti sarıya döner ve tek tıkla doğrudan güncellenir.",
                     badge: "ÖNE ÇIKAN"
                 ),
                 .init(
-                    icon: "waveform",
-                    title: "Ses Stüdyosu",
-                    description: "Ses çıkarma, sesi tamamen kaldırma, EBU R128 normalizasyon, dB ses seviyesi ayarı ve fade geçiş efektleri.",
-                    badge: "YENİ MENÜ"
+                    icon: "arrow.down.to.line.compact",
+                    title: "Homebrew Bağımsız Kurulum",
+                    description: "Sistemde Homebrew yoksa bile tek tıkla resmi universal FFmpeg ikili dosyaları özel dizine kurulur.",
+                    badge: "ALTYAPI"
                 ),
                 .init(
-                    icon: "square.stack.3d.up",
-                    title: "Toplu İşlemler",
-                    description: "Klasör seçimi, toplu medya tarama, dosya başına veya genel ayarlar, kuyruk duraklatma ve toplu iptal.",
-                    badge: "YENİ MENÜ"
-                ),
-                .init(
-                    icon: "doc.text.magnifyingglass",
-                    title: "Ayrıntılı Medya Bilgisi",
-                    description: "Görüntü ve ses akışları, çözünürlük, kodek dökümü ve ham FFprobe JSON panoya kopyalama desteği.",
-                    badge: "YENİ MENÜ"
-                ),
-                .init(
-                    icon: "gauge.with.needle",
-                    title: "Akıllı Boyut ve Kalite Tahmini",
-                    description: "Sıkıştırma ekranında seçilen profile göre anlık çıktı boyutu ve tasarruf yüzdesi hesaplaması.",
-                    badge: "GÜNCELLEME"
+                    icon: "app.badge.fill",
+                    title: "Yeni Patoo Maskotu & Dock İkonu",
+                    description: "Dock'ta ve uygulama içi başlıklarda yüksek çözünürlüklü bilge baykuş maskotu yer aldı.",
+                    badge: "TASARIM"
                 )
             ]
         )
