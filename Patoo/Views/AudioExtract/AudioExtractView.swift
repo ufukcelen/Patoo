@@ -15,6 +15,7 @@ public struct AudioExtractView: View {
     @State private var isAnalyzing: Bool = false
     @State private var config = AudioExtractionConfig()
     @State private var outputDirectory: URL? = nil
+    @State private var customFileName: String = ""
     
     public init(
         selectedSection: Binding<NavigationSection>,
@@ -26,21 +27,16 @@ public struct AudioExtractView: View {
         self.appState = appState
     }
     
-    private var hasAudioStream: Bool {
-        guard let meta = metadata else { return true }
-        return !meta.audioStreams.isEmpty
-    }
-    
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Videodan Ses Çıkar")
+                    Text("Ses Çıkar")
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    Text("Video dosyalarındaki ses parçasını bağımsız yüksek kaliteli ses dosyalarına dönüştürün.")
+                    Text("Videolardan ses akışını ayırın, MP3, AAC, FLAC veya WAV olarak yüksek kalitede kaydedin.")
                         .font(.system(size: 13))
                         .foregroundColor(PatooTheme.textSecondary)
                 }
@@ -50,130 +46,89 @@ public struct AudioExtractView: View {
                     MediaInspectorView(metadata: meta) {
                         selectedFileURL = nil
                         metadata = nil
+                        customFileName = ""
                     }
                 } else {
                     FileDropZone(
-                        title: "Ses Çıkarılacak Videoyu Ekleyin",
-                        subtitle: "MP4, MOV, MKV veya diğer tüm video dosyaları",
+                        title: "Ses Çıkarılacak Video Dosyasını Ekleyin",
+                        subtitle: "MP4, MOV, MKV, AVI, WebM ve diğer video formatları",
                         isAnalyzing: isAnalyzing,
                         onFileSelected: analyzeFile
                     )
                 }
                 
                 if let currentFile = selectedFileURL {
-                    if !hasAudioStream {
-                        // Warning banner for video without audio
-                        HStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(PatooTheme.danger)
+                    // Audio Extraction Settings Card
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text("Ses Çıkarma Seçenekleri")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        // Format Picker
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Hedef Ses Formatı")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(PatooTheme.textSecondary)
                             
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Bu dosyada ses akışı bulunamadı")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(PatooTheme.textPrimary)
-                                
-                                Text("Seçtiğiniz video dosyasında ayrıştırılabilecek herhangi bir ses izi mevcut değildir. Lütfen ses içeren bir dosya seçin.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(PatooTheme.textSecondary)
+                            Picker("", selection: $config.format) {
+                                ForEach(AudioExtractFormat.allCases) { format in
+                                    Text(format.displayName).tag(format)
+                                }
                             }
+                            .labelsHidden()
                         }
-                        .padding(14)
-                        .background(PatooTheme.danger.opacity(0.12))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(PatooTheme.danger.opacity(0.3), lineWidth: 1)
-                        )
-                    } else {
-                        // Options Card
-                        VStack(alignment: .leading, spacing: 18) {
-                            Text("Ses Çıkarma Seçenekleri")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(PatooTheme.textPrimary)
-                            
-                            // Target format selector
+                        
+                        // Bitrate selector (if applicable)
+                        if config.format.supportsBitrateSelection {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Hedef Ses Formatı")
+                                Text("Ses Bit Hızı (Kalite)")
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(PatooTheme.textSecondary)
                                 
-                                Picker("", selection: $config.format) {
-                                    ForEach(AudioExtractFormat.allCases) { format in
-                                        Text(format.displayName).tag(format)
+                                Picker("", selection: $config.bitrate) {
+                                    ForEach(AudioBitrate.allCases) { br in
+                                        Text(br.displayName).tag(br)
                                     }
                                 }
-                                .labelsHidden()
-                            }
-                            
-                            // Bitrate selector (if applicable)
-                            if config.format.supportsBitrateSelection {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Ses Bit Hızı (Kalite)")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(PatooTheme.textSecondary)
-                                    
-                                    Picker("", selection: $config.bitrate) {
-                                        ForEach(AudioBitrate.allCases) { br in
-                                            Text(br.displayName).tag(br)
-                                        }
-                                    }
-                                    .pickerStyle(.segmented)
-                                }
-                            }
-                            
-                            // Stream copy passthrough toggle
-                            Toggle(isOn: $config.tryPassthroughIfCompatible) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Uyumluysa Akışı Doğrudan Kopyala (Passthrough)")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(PatooTheme.textPrimary)
-                                    Text("Eğer kaynak ses formatı hedefle uyuşuyorsa yeniden kodlama yapmaz, sıfır kalite kaybıyla anında kaydeder.")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(PatooTheme.textTertiary)
-                                }
-                            }
-                            .toggleStyle(.checkbox)
-                            
-                            Divider().background(PatooTheme.borderSubtle)
-                            
-                            // Output Destination
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Kayıt Konumu")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(PatooTheme.textSecondary)
-                                    
-                                    Text(outputDirectory?.path ?? "Kaynak klasör ile aynı (\(currentFile.deletingLastPathComponent().lastPathComponent))")
-                                        .font(.system(size: 11, design: .monospaced))
-                                        .foregroundColor(PatooTheme.textTertiary)
-                                        .lineLimit(1)
-                                }
-                                
-                                Spacer()
-                                
-                                Button("Klasör Değiştir") {
-                                    chooseOutputFolder()
-                                }
-                                .buttonStyle(.plain)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(PatooTheme.cyan)
+                                .pickerStyle(.segmented)
                             }
                         }
-                        .padding(18)
-                        .patooCard()
                         
-                        // Action Button
-                        HStack {
-                            Spacer()
-                            
-                            PatooButton(
-                                "Sesi Çıkar ve Kaydet",
-                                icon: "waveform",
-                                style: .primary
-                            ) {
-                                enqueueAudioExtraction(fileURL: currentFile)
+                        // Stream copy passthrough toggle
+                        Toggle(isOn: $config.tryPassthroughIfCompatible) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Uyumluysa Akışı Doğrudan Kopyala (Passthrough)")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(PatooTheme.textPrimary)
+                                Text("Eğer kaynak ses formatı hedefle uyuşuyorsa yeniden kodlama yapmaz, sıfır kalite kaybıyla anında kaydeder.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(PatooTheme.textTertiary)
                             }
+                        }
+                        .toggleStyle(.checkbox)
+                    }
+                    .padding(18)
+                    .patooCard()
+                    
+                    // Output File Name & Destination Card
+                    OutputConfigView(
+                        fileName: $customFileName,
+                        targetExtension: config.format.fileExtension,
+                        outputDirectory: $outputDirectory,
+                        sourceURL: currentFile,
+                        defaultSuffix: "audio"
+                    )
+                    
+                    // Action Button
+                    HStack {
+                        Spacer()
+                        
+                        PatooButton(
+                            "Sesi Çıkar ve Kaydet",
+                            icon: "waveform",
+                            style: .primary
+                        ) {
+                            enqueueAudioExtraction(fileURL: currentFile)
                         }
                     }
                 }
@@ -186,6 +141,7 @@ public struct AudioExtractView: View {
     private func analyzeFile(_ url: URL) {
         selectedFileURL = url
         isAnalyzing = true
+        customFileName = url.deletingPathExtension().lastPathComponent + "_audio"
         
         Task {
             do {
@@ -200,22 +156,11 @@ public struct AudioExtractView: View {
         }
     }
     
-    private func chooseOutputFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        
-        if panel.runModal() == .OK, let dir = panel.url {
-            outputDirectory = dir
-        }
-    }
-    
     private func enqueueAudioExtraction(fileURL: URL) {
         let targetURL = FFmpegCommandBuilder.generateSafeTargetURL(
             sourceURL: fileURL,
             destinationDirectory: outputDirectory,
+            customFileName: customFileName.isEmpty ? nil : customFileName,
             suffix: "audio",
             targetExtension: config.format.fileExtension,
             overwrite: false

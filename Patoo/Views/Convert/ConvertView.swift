@@ -15,6 +15,7 @@ public struct ConvertView: View {
     @State private var isAnalyzing: Bool = false
     @State private var config = ConversionConfig()
     @State private var outputDirectory: URL? = nil
+    @State private var customFileName: String = ""
     
     public init(
         selectedSection: Binding<NavigationSection>,
@@ -45,6 +46,7 @@ public struct ConvertView: View {
                     MediaInspectorView(metadata: meta) {
                         selectedFileURL = nil
                         metadata = nil
+                        customFileName = ""
                     }
                 } else {
                     FileDropZone(
@@ -166,34 +168,18 @@ public struct ConvertView: View {
                                 .tint(PatooTheme.cyan)
                             }
                         }
-                        
-                        Divider().background(PatooTheme.borderSubtle)
-                        
-                        // Output Destination
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Kayıt Konumu")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(PatooTheme.textSecondary)
-                                
-                                Text(outputDirectory?.path ?? "Kaynak klasör ile aynı (\(currentFile.deletingLastPathComponent().lastPathComponent))")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(PatooTheme.textTertiary)
-                                    .lineLimit(1)
-                            }
-                            
-                            Spacer()
-                            
-                            Button("Klasör Değiştir") {
-                                chooseOutputFolder()
-                            }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(PatooTheme.cyan)
-                        }
                     }
                     .padding(18)
                     .patooCard()
+                    
+                    // Output File Name & Destination Card
+                    OutputConfigView(
+                        fileName: $customFileName,
+                        targetExtension: config.container.rawValue,
+                        outputDirectory: $outputDirectory,
+                        sourceURL: currentFile,
+                        defaultSuffix: "converted"
+                    )
                     
                     // Action Buttons
                     HStack {
@@ -217,6 +203,7 @@ public struct ConvertView: View {
     private func analyzeFile(_ url: URL) {
         selectedFileURL = url
         isAnalyzing = true
+        customFileName = url.deletingPathExtension().lastPathComponent + "_converted"
         
         Task {
             do {
@@ -231,22 +218,11 @@ public struct ConvertView: View {
         }
     }
     
-    private func chooseOutputFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        
-        if panel.runModal() == .OK, let dir = panel.url {
-            outputDirectory = dir
-        }
-    }
-    
     private func enqueueConversion(fileURL: URL) {
         let targetURL = FFmpegCommandBuilder.generateSafeTargetURL(
             sourceURL: fileURL,
             destinationDirectory: outputDirectory,
+            customFileName: customFileName.isEmpty ? nil : customFileName,
             suffix: "converted",
             targetExtension: config.container.rawValue,
             overwrite: false

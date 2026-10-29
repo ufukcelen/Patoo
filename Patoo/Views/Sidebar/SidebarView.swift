@@ -9,15 +9,20 @@ public struct SidebarView: View {
     @Binding var selection: NavigationSection
     var queueManager: QueueManager
     var appState: AppState
+    var updateManager: AppUpdateManager
+    
+    @State private var isHoveringUpdate = false
     
     public init(
         selection: Binding<NavigationSection>,
         queueManager: QueueManager,
-        appState: AppState
+        appState: AppState,
+        updateManager: AppUpdateManager = .shared
     ) {
         self._selection = selection
         self.queueManager = queueManager
         self.appState = appState
+        self.updateManager = updateManager
     }
     
     public var body: some View {
@@ -36,12 +41,32 @@ public struct SidebarView: View {
                         .font(.system(size: 15, weight: .black, design: .monospaced))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    Text("v0.0.1 • FFmpeg Engine")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(PatooTheme.textTertiary)
+                    HStack(spacing: 4) {
+                        Text("v\(AppUpdateManager.currentVersion)")
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .foregroundColor(PatooTheme.cyan)
+                        
+                        Text("• FFmpeg")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(PatooTheme.textTertiary)
+                    }
                 }
                 
                 Spacer()
+                
+                // What's New button
+                Button(action: {
+                    updateManager.showWhatsNewModal = true
+                }) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 12))
+                        .foregroundColor(PatooTheme.textTertiary)
+                        .padding(6)
+                        .background(PatooTheme.bgCard)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Sürüm Yenilikleri")
             }
             .padding(.horizontal, 16)
             .padding(.top, 20)
@@ -63,32 +88,62 @@ public struct SidebarView: View {
             
             Spacer()
             
-            // Engine Status Indicator at bottom
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(appState.ffmpegInstallation.isReady ? PatooTheme.success : PatooTheme.warning)
-                    .frame(width: 8, height: 8)
-                    .shadow(color: (appState.ffmpegInstallation.isReady ? PatooTheme.success : PatooTheme.warning).opacity(0.6), radius: 3)
-                
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(appState.ffmpegInstallation.isReady ? "FFmpeg Hazır" : "FFmpeg Eksik")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(PatooTheme.textPrimary)
-                    
-                    Text(appState.ffmpegInstallation.isReady ? "Sistem Aktif" : "Ayarları Kontrol Edin")
-                        .font(.system(size: 10))
-                        .foregroundColor(PatooTheme.textTertiary)
+            // Update & Status Area
+            VStack(spacing: 8) {
+                // Update Button
+                Button(action: {
+                    updateManager.checkForUpdates(showFeedbackIfUpToDate: true)
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(PatooTheme.cyan)
+                        
+                        Text("Güncelleme Denetle")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(isHoveringUpdate ? PatooTheme.cyan.opacity(0.12) : PatooTheme.bgCard)
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(isHoveringUpdate ? PatooTheme.cyan.opacity(0.4) : PatooTheme.borderSubtle, lineWidth: 1)
+                    )
                 }
+                .buttonStyle(.plain)
+                .onHover { isHoveringUpdate = $0 }
                 
-                Spacer()
+                // Engine Status Indicator at bottom
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(appState.ffmpegInstallation.isReady ? PatooTheme.success : PatooTheme.warning)
+                        .frame(width: 8, height: 8)
+                        .shadow(color: (appState.ffmpegInstallation.isReady ? PatooTheme.success : PatooTheme.warning).opacity(0.6), radius: 3)
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(appState.ffmpegInstallation.isReady ? "FFmpeg Hazır" : "FFmpeg Eksik")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        Text(appState.ffmpegInstallation.isReady ? "Sistem Aktif" : "Ayarları Kontrol Edin")
+                            .font(.system(size: 10))
+                            .foregroundColor(PatooTheme.textTertiary)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(10)
+                .background(PatooTheme.bgCard)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(PatooTheme.borderSubtle, lineWidth: 1)
+                )
             }
-            .padding(12)
-            .background(PatooTheme.bgCard)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(PatooTheme.borderSubtle, lineWidth: 1)
-            )
             .padding(12)
         }
         .frame(width: 210)
@@ -108,12 +163,12 @@ private struct SidebarItemRow: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: section.iconName)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: 13, weight: isSelected ? .bold : .medium))
                     .foregroundColor(isSelected ? PatooTheme.cyan : (isHovered ? PatooTheme.textPrimary : PatooTheme.textSecondary))
                     .frame(width: 18)
                 
                 Text(section.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
                     .foregroundColor(isSelected ? PatooTheme.textPrimary : (isHovered ? PatooTheme.textPrimary : PatooTheme.textSecondary))
                 
                 Spacer()
@@ -121,29 +176,25 @@ private struct SidebarItemRow: View {
                 if let count = badgeCount, count > 0 {
                     Text("\(count)")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(Color.black)
+                        .foregroundColor(isSelected ? .black : PatooTheme.cyan)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(PatooTheme.cyan)
-                        )
+                        .background(isSelected ? PatooTheme.cyan : PatooTheme.cyan.opacity(0.15))
+                        .clipShape(Capsule())
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? PatooTheme.cyan.opacity(0.12) : (isHovered ? Color.white.opacity(0.04) : Color.clear))
+                    .fill(isSelected ? PatooTheme.bgCardHover : (isHovered ? PatooTheme.bgCard.opacity(0.5) : Color.clear))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? PatooTheme.borderCyan : Color.clear, lineWidth: 1)
+                    .stroke(isSelected ? PatooTheme.cyan.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
-        .onHover { hovering in
-            isHovered = hovering
-        }
+        .onHover { isHovered = $0 }
     }
 }

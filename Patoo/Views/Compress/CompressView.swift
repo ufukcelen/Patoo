@@ -15,6 +15,7 @@ public struct CompressView: View {
     @State private var isAnalyzing: Bool = false
     @State private var config = CompressionConfig()
     @State private var outputDirectory: URL? = nil
+    @State private var customFileName: String = ""
     
     public init(
         selectedSection: Binding<NavigationSection>,
@@ -35,7 +36,7 @@ public struct CompressView: View {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    Text("Görsel kaliteyi korurken akıllı algoritmalarla dosya boyutunu küçültün.")
+                    Text("Görsel kaliteyi koruyarak dosya boyutunu akıllıca küçültün.")
                         .font(.system(size: 13))
                         .foregroundColor(PatooTheme.textSecondary)
                 }
@@ -45,24 +46,26 @@ public struct CompressView: View {
                     MediaInspectorView(metadata: meta) {
                         selectedFileURL = nil
                         metadata = nil
+                        customFileName = ""
                     }
                 } else {
                     FileDropZone(
                         title: "Sıkıştırılacak Video Dosyasını Ekleyin",
-                        subtitle: "Büyük boyutlu video dosyalarını buraya bırakın",
+                        subtitle: "Büyük boyutlu MP4, MOV, MKV ve diğer video dosyaları",
                         isAnalyzing: isAnalyzing,
                         onFileSelected: analyzeFile
                     )
                 }
                 
                 if let currentFile = selectedFileURL {
-                    // Compression Profiles Cards
-                    VStack(alignment: .leading, spacing: 12) {
+                    // Compression Options Card
+                    VStack(alignment: .leading, spacing: 18) {
                         Text("Sıkıştırma Profili")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(PatooTheme.textPrimary)
                         
-                        VStack(spacing: 10) {
+                        // Profile Cards Grid
+                        HStack(spacing: 12) {
                             ForEach([CompressionProfile.small, .balanced, .highQuality, .custom]) { profile in
                                 CompressionProfileCard(
                                     profile: profile,
@@ -72,39 +75,49 @@ public struct CompressView: View {
                                 }
                             }
                         }
-                    }
-                    
-                    // Fine tuning options card
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Gelişmiş Seçenekler")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(PatooTheme.textPrimary)
                         
-                        // Downscale toggle
-                        Toggle(isOn: $config.downscaleTo1080pIfLarger) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("4K / 2K Videoları 1080p Full HD'ye Ölçekle")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(PatooTheme.textPrimary)
-                                Text("Dosya boyutunu önemli ölçüde azaltır, ekranlarda kalite kaybı hissedilmez.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(PatooTheme.textTertiary)
-                            }
-                        }
-                        .toggleStyle(.checkbox)
+                        Divider().background(PatooTheme.borderSubtle)
                         
-                        // Hardware Acceleration toggle
-                        Toggle(isOn: $config.useHardwareAcceleration) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Apple Silicon Donanım Hızlandırma (VideoToolbox)")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(PatooTheme.textPrimary)
-                                Text("GPU ve Apple Media Engine kullanarak işlemi 5-10 kat daha hızlı tamamlar.")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(PatooTheme.textTertiary)
+                        // Toggles
+                        VStack(spacing: 12) {
+                            // Hardware acceleration
+                            Toggle(isOn: $config.useHardwareAcceleration) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    HStack {
+                                        Text("Apple Silicon Donanım Hızlandırma (VideoToolbox)")
+                                            .font(.system(size: 12, weight: .medium))
+                                            .foregroundColor(PatooTheme.textPrimary)
+                                        
+                                        Text("ÖNERİLEN")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(PatooTheme.cyan)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(PatooTheme.cyan.opacity(0.12))
+                                            .cornerRadius(3)
+                                    }
+                                    
+                                    Text("Apple M1/M2/M3/M4 GPU medya motorunu kullanarak ışık hızında sıkıştırır.")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(PatooTheme.textTertiary)
+                                }
                             }
+                            .toggleStyle(.checkbox)
+                            
+                            // 1080p Downscale
+                            Toggle(isOn: $config.downscaleTo1080pIfLarger) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Büyükse 1080p Full HD'ye Küçült")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(PatooTheme.textPrimary)
+                                    
+                                    Text("4K veya daha yüksek videoları maksimum 1920×1080 ölçeğine indirerek ekstra alan tasarrufu sağlar.")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(PatooTheme.textTertiary)
+                                }
+                            }
+                            .toggleStyle(.checkbox)
                         }
-                        .toggleStyle(.checkbox)
                         
                         // Custom CRF slider
                         if config.profile == .custom {
@@ -126,34 +139,18 @@ public struct CompressView: View {
                                 .tint(PatooTheme.cyan)
                             }
                         }
-                        
-                        Divider().background(PatooTheme.borderSubtle)
-                        
-                        // Output Destination
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Kayıt Konumu")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(PatooTheme.textSecondary)
-                                
-                                Text(outputDirectory?.path ?? "Kaynak klasör ile aynı (\(currentFile.deletingLastPathComponent().lastPathComponent))")
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(PatooTheme.textTertiary)
-                                    .lineLimit(1)
-                            }
-                            
-                            Spacer()
-                            
-                            Button("Klasör Değiştir") {
-                                chooseOutputFolder()
-                            }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(PatooTheme.cyan)
-                        }
                     }
                     .padding(18)
                     .patooCard()
+                    
+                    // Output File Name & Destination Card
+                    OutputConfigView(
+                        fileName: $customFileName,
+                        targetExtension: currentFile.pathExtension.isEmpty ? "mp4" : currentFile.pathExtension,
+                        outputDirectory: $outputDirectory,
+                        sourceURL: currentFile,
+                        defaultSuffix: "compressed"
+                    )
                     
                     // Action Button
                     HStack {
@@ -177,6 +174,7 @@ public struct CompressView: View {
     private func analyzeFile(_ url: URL) {
         selectedFileURL = url
         isAnalyzing = true
+        customFileName = url.deletingPathExtension().lastPathComponent + "_compressed"
         
         Task {
             do {
@@ -191,23 +189,12 @@ public struct CompressView: View {
         }
     }
     
-    private func chooseOutputFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        
-        if panel.runModal() == .OK, let dir = panel.url {
-            outputDirectory = dir
-        }
-    }
-    
     private func enqueueCompression(fileURL: URL) {
         let ext = fileURL.pathExtension.isEmpty ? "mp4" : fileURL.pathExtension
         let targetURL = FFmpegCommandBuilder.generateSafeTargetURL(
             sourceURL: fileURL,
             destinationDirectory: outputDirectory,
+            customFileName: customFileName.isEmpty ? nil : customFileName,
             suffix: "compressed",
             targetExtension: ext,
             overwrite: false
@@ -234,46 +221,42 @@ private struct CompressionProfileCard: View {
     
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? PatooTheme.cyan.opacity(0.2) : PatooTheme.bgInput)
-                        .frame(width: 36, height: 36)
-                    
-                    Image(systemName: profile.iconName)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(isSelected ? PatooTheme.cyan : PatooTheme.textSecondary)
-                }
-                
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
                     Text(profile.title)
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(PatooTheme.textPrimary)
-                    
-                    Text(profile.subtitle)
-                        .font(.system(size: 11))
-                        .foregroundColor(PatooTheme.textSecondary)
+                        .foregroundColor(isSelected ? PatooTheme.cyan : PatooTheme.textPrimary)
+                    Spacer()
+                    if isSelected {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(PatooTheme.cyan)
+                    }
                 }
                 
-                Spacer()
+                Text(profile.subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(PatooTheme.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(PatooTheme.cyan)
+                HStack {
+                    Text("~%20-%60 Boyut")
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundColor(PatooTheme.textTertiary)
+                    Spacer()
+                    Text("CRF \(profile.defaultCRF)")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(isSelected ? PatooTheme.cyan : PatooTheme.textTertiary)
                 }
             }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? PatooTheme.cyan.opacity(0.08) : (isHovered ? PatooTheme.bgCardHover : PatooTheme.bgCard))
-            )
+            .padding(12)
+            .background(isSelected ? PatooTheme.cyan.opacity(0.08) : PatooTheme.bgCard)
+            .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? PatooTheme.borderActive : PatooTheme.borderSubtle, lineWidth: 1)
+                    .stroke(isSelected ? PatooTheme.cyan : PatooTheme.borderSubtle, lineWidth: isSelected ? 1.5 : 1)
             )
         }
         .buttonStyle(.plain)
-        .onHover { isHovered = $0 }
     }
 }

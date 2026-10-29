@@ -16,7 +16,7 @@ public enum CoreLogicTests {
         assert(MediaMetadata.formatDuration(3665) == "01:01:05", "3665s should be 01:01:05")
         print("[PatooTests] Duration formatting: OK")
         
-        // Test 2: Safe target URL generation
+        // Test 2: Safe target URL generation (with suffix and custom name)
         let sampleURL = URL(fileURLWithPath: "/tmp/video.mov")
         let target1 = FFmpegCommandBuilder.generateSafeTargetURL(
             sourceURL: sampleURL,
@@ -25,7 +25,27 @@ public enum CoreLogicTests {
             overwrite: false
         )
         assert(target1.lastPathComponent == "video_converted.mp4", "Target URL mismatch")
-        print("[PatooTests] Safe target URL: OK")
+        
+        // Test 2b: Custom file name (e.g., user specifies "b" for "a.mp4" -> "b.mkv")
+        let targetCustom1 = FFmpegCommandBuilder.generateSafeTargetURL(
+            sourceURL: sampleURL,
+            customFileName: "b",
+            suffix: "converted",
+            targetExtension: "mkv",
+            overwrite: false
+        )
+        assert(targetCustom1.lastPathComponent == "b.mkv", "Custom name 'b' should produce 'b.mkv'")
+        
+        // Test 2c: Custom file name with typed extension "b.mkv"
+        let targetCustom2 = FFmpegCommandBuilder.generateSafeTargetURL(
+            sourceURL: sampleURL,
+            customFileName: "b.mkv",
+            suffix: "converted",
+            targetExtension: "mkv",
+            overwrite: false
+        )
+        assert(targetCustom2.lastPathComponent == "b.mkv", "Custom name 'b.mkv' should strip duplicate extension and produce 'b.mkv'")
+        print("[PatooTests] Safe target URL & Custom file names: OK")
         
         // Test 3: Conversion command builder & QuickTime compatibility flags
         var convConfig = ConversionConfig()

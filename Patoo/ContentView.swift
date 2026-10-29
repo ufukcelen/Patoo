@@ -8,6 +8,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var appState = AppState.shared
     @State private var queueManager = QueueManager.shared
+    @State private var updateManager = AppUpdateManager.shared
     
     var body: some View {
         HStack(spacing: 0) {
@@ -15,7 +16,8 @@ struct ContentView: View {
             SidebarView(
                 selection: $appState.selectedSection,
                 queueManager: queueManager,
-                appState: appState
+                appState: appState,
+                updateManager: updateManager
             )
             
             Divider()
@@ -54,7 +56,7 @@ struct ContentView: View {
                     case .queue:
                         QueueView(queueManager: queueManager)
                     case .settings:
-                        SettingsView(appState: appState)
+                        SettingsView(appState: appState, updateManager: updateManager)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,6 +90,12 @@ struct ContentView: View {
         .frame(minWidth: 960, minHeight: 650)
         .background(PatooTheme.bgDark)
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $updateManager.showWhatsNewModal) {
+            WhatsNewSheet(updateManager: updateManager)
+        }
+        .sheet(isPresented: $updateManager.showUpdateModal) {
+            AppUpdateSheet(updateManager: updateManager)
+        }
     }
 }
 

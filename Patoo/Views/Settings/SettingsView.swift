@@ -7,14 +7,16 @@ import SwiftUI
 
 public struct SettingsView: View {
     var appState: AppState
+    var updateManager: AppUpdateManager
     
     @AppStorage("custom_ffmpeg_path") private var customFFmpegPath: String = ""
     @AppStorage("custom_ffprobe_path") private var customFFprobePath: String = ""
     @AppStorage("default_overwrite_files") private var overwriteFiles: Bool = false
     @AppStorage("default_use_videotoolbox") private var useVideoToolbox: Bool = true
     
-    public init(appState: AppState) {
+    public init(appState: AppState, updateManager: AppUpdateManager = .shared) {
         self.appState = appState
+        self.updateManager = updateManager
     }
     
     public var body: some View {
@@ -26,10 +28,78 @@ public struct SettingsView: View {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    Text("FFmpeg altyapısı, donanım optimizasyonları ve çıktı tercihleri.")
+                    Text("FFmpeg altyapısı, donanım optimizasyonları ve güncelleme tercihleri.")
                         .font(.system(size: 13))
                         .foregroundColor(PatooTheme.textSecondary)
                 }
+                
+                // App & Updates Section
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("Patoo Sürümü & Güncellemeler")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(PatooTheme.textPrimary)
+                    
+                    HStack(spacing: 16) {
+                        Image("AppLogo")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 8) {
+                                Text("Patoo Media Converter")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(PatooTheme.textPrimary)
+                                
+                                Text("v\(AppUpdateManager.currentVersion)")
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .foregroundColor(PatooTheme.cyan)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(PatooTheme.cyan.opacity(0.15))
+                                    .cornerRadius(4)
+                            }
+                            
+                            Text("Apple Silicon ve Intel için yüksek performanslı medya aracı.")
+                                .font(.system(size: 11))
+                                .foregroundColor(PatooTheme.textSecondary)
+                        }
+                        
+                        Spacer()
+                        
+                        HStack(spacing: 8) {
+                            Button("Yenilikleri Gör") {
+                                updateManager.showWhatsNewModal = true
+                            }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(PatooTheme.cyan)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(PatooTheme.bgInput)
+                            .cornerRadius(6)
+                            
+                            Button(action: {
+                                updateManager.checkForUpdates(showFeedbackIfUpToDate: true)
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                    Text("Güncellemeleri Denetle")
+                                }
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(PatooTheme.cyan)
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(18)
+                .patooCard()
                 
                 // FFmpeg Engine Status Section
                 VStack(alignment: .leading, spacing: 16) {

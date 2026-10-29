@@ -230,15 +230,31 @@ public enum FFmpegCommandBuilder {
     public static func generateSafeTargetURL(
         sourceURL: URL,
         destinationDirectory: URL? = nil,
-        suffix: String,
+        customFileName: String? = nil,
+        suffix: String? = "converted",
         targetExtension: String,
         overwrite: Bool = false
     ) -> URL {
         let dir = destinationDirectory ?? sourceURL.deletingLastPathComponent()
-        let baseName = sourceURL.deletingPathExtension().lastPathComponent
-        let cleanExt = targetExtension.replacingOccurrences(of: ".", with: "")
+        let cleanExt = targetExtension.replacingOccurrences(of: ".", with: "").trimmingCharacters(in: .whitespaces)
         
-        var target = dir.appendingPathComponent("\(baseName)_\(suffix).\(cleanExt)")
+        let rawName: String
+        if let custom = customFileName?.trimmingCharacters(in: .whitespacesAndNewlines), !custom.isEmpty {
+            if custom.lowercased().hasSuffix("." + cleanExt.lowercased()) {
+                rawName = String(custom.dropLast(cleanExt.count + 1))
+            } else {
+                rawName = custom
+            }
+        } else {
+            let baseName = sourceURL.deletingPathExtension().lastPathComponent
+            if let suf = suffix, !suf.isEmpty {
+                rawName = "\(baseName)_\(suf)"
+            } else {
+                rawName = baseName
+            }
+        }
+        
+        var target = dir.appendingPathComponent("\(rawName).\(cleanExt)")
         
         if overwrite || !FileManager.default.fileExists(atPath: target.path) {
             return target
@@ -246,7 +262,7 @@ public enum FFmpegCommandBuilder {
         
         var counter = 1
         while FileManager.default.fileExists(atPath: target.path) {
-            target = dir.appendingPathComponent("\(baseName)_\(suffix)_\(counter).\(cleanExt)")
+            target = dir.appendingPathComponent("\(rawName)_\(counter).\(cleanExt)")
             counter += 1
         }
         
