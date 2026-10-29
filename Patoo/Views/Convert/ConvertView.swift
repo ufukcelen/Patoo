@@ -79,6 +79,9 @@ public struct ConvertView: View {
                                     if !newContainer.supportedVideoCodecs.contains(config.videoCodec) {
                                         config.videoCodec = newContainer.defaultVideoCodec
                                     }
+                                    if !newContainer.supportedAudioCodecs.contains(config.audioCodec) {
+                                        config.audioCodec = newContainer.defaultAudioCodec
+                                    }
                                 }
                             }
                             
@@ -136,7 +139,7 @@ public struct ConvertView: View {
                                 .foregroundColor(PatooTheme.textSecondary)
                             
                             Picker("", selection: $config.audioCodec) {
-                                ForEach(AudioCodec.allCases) { audio in
+                                ForEach(config.container.supportedAudioCodecs) { audio in
                                     Text(audio.displayName).tag(audio)
                                 }
                             }

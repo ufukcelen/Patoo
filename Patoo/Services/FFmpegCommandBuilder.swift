@@ -40,22 +40,56 @@ public enum FFmpegCommandBuilder {
             "-i", inputURL.path
         ]
         
+        let isAppleContainer = (config.container == .mp4 || config.container == .mov)
+        
         // Video codec & filters
         switch config.videoCodec {
         case .copy:
             args.append(contentsOf: ["-c:v", "copy"])
+            if isAppleContainer {
+                // If copying into MP4/MOV, ensure hvc1 tag for HEVC compatibility with QuickTime
+                args.append(contentsOf: ["-tag:v", "hvc1"])
+            }
         case .h264Hardware:
-            args.append(contentsOf: ["-c:v", "h264_videotoolbox", "-b:v", "5000k"])
+            args.append(contentsOf: [
+                "-c:v", "h264_videotoolbox",
+                "-b:v", "5000k",
+                "-pix_fmt", "yuv420p"
+            ])
         case .h265Hardware:
-            args.append(contentsOf: ["-c:v", "hevc_videotoolbox", "-b:v", "3500k"])
+            args.append(contentsOf: [
+                "-c:v", "hevc_videotoolbox",
+                "-b:v", "3500k",
+                "-tag:v", "hvc1",
+                "-pix_fmt", "yuv420p"
+            ])
         case .h264:
-            args.append(contentsOf: ["-c:v", "libx264", "-crf", "\(config.crf)", "-preset", "medium"])
+            args.append(contentsOf: [
+                "-c:v", "libx264",
+                "-crf", "\(config.crf)",
+                "-preset", "medium",
+                "-pix_fmt", "yuv420p"
+            ])
         case .h265:
-            args.append(contentsOf: ["-c:v", "libx265", "-crf", "\(config.crf + 2)", "-preset", "medium"])
+            args.append(contentsOf: [
+                "-c:v", "libx265",
+                "-crf", "\(config.crf + 2)",
+                "-preset", "medium",
+                "-tag:v", "hvc1",
+                "-pix_fmt", "yuv420p"
+            ])
         case .prores:
-            args.append(contentsOf: ["-c:v", "prores_ks", "-profile:v", "3"]) // ProRes 422 HQ
+            args.append(contentsOf: [
+                "-c:v", "prores_ks",
+                "-profile:v", "3", // ProRes 422 HQ
+                "-pix_fmt", "yuv422p10le"
+            ])
         case .vp9:
-            args.append(contentsOf: ["-c:v", "libvpx-vp9", "-crf", "\(config.crf + 8)", "-b:v", "0"])
+            args.append(contentsOf: [
+                "-c:v", "libvpx-vp9",
+                "-crf", "\(config.crf + 8)",
+                "-b:v", "0"
+            ])
         }
         
         // Video filters (resolution)
@@ -82,6 +116,11 @@ public enum FFmpegCommandBuilder {
             args.append(contentsOf: ["-c:a", "libopus", "-b:a", "\(config.audioBitrateKbps)k"])
         case .flac:
             args.append(contentsOf: ["-c:a", "flac"])
+        }
+        
+        // Faststart for MP4 and MOV containers (moves moov atom to beginning for QuickTime & web playback)
+        if isAppleContainer {
+            args.append(contentsOf: ["-movflags", "+faststart"])
         }
         
         args.append(outputURL.path)
@@ -113,13 +152,18 @@ public enum FFmpegCommandBuilder {
             case .highQuality: videoBitrate = "8000k"
             case .custom: videoBitrate = "4500k"
             }
-            args.append(contentsOf: ["-c:v", "h264_videotoolbox", "-b:v", videoBitrate])
+            args.append(contentsOf: [
+                "-c:v", "h264_videotoolbox",
+                "-b:v", videoBitrate,
+                "-pix_fmt", "yuv420p"
+            ])
         } else {
             // High efficiency software libx264
             args.append(contentsOf: [
                 "-c:v", "libx264",
                 "-crf", "\(crf)",
-                "-preset", "medium"
+                "-preset", "medium",
+                "-pix_fmt", "yuv420p"
             ])
         }
         
@@ -134,6 +178,9 @@ public enum FFmpegCommandBuilder {
             "-c:a", "aac",
             "-b:a", "\(audioBitrate)k"
         ])
+        
+        // Faststart for QuickTime compatibility & web streaming
+        args.append(contentsOf: ["-movflags", "+faststart"])
         
         args.append(outputURL.path)
         return FFmpegCommand(arguments: args, outputURL: outputURL)

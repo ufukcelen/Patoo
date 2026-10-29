@@ -25,6 +25,13 @@ public enum ContainerFormat: String, CaseIterable, Identifiable, Sendable {
         }
     }
     
+    public var defaultAudioCodec: AudioCodec {
+        switch self {
+        case .mp4, .mov, .mkv: return .aac
+        case .webm: return .opus
+        }
+    }
+    
     public var supportedVideoCodecs: [VideoCodec] {
         switch self {
         case .mp4:
@@ -35,6 +42,19 @@ public enum ContainerFormat: String, CaseIterable, Identifiable, Sendable {
             return [.h264, .h265, .vp9, .copy]
         case .webm:
             return [.vp9]
+        }
+    }
+    
+    public var supportedAudioCodecs: [AudioCodec] {
+        switch self {
+        case .mp4:
+            return [.aac, .mp3, .copy, .none]
+        case .mov:
+            return [.aac, .mp3, .flac, .copy, .none]
+        case .mkv:
+            return [.aac, .mp3, .opus, .flac, .copy, .none]
+        case .webm:
+            return [.opus, .none]
         }
     }
 }
@@ -79,7 +99,7 @@ public enum AudioCodec: String, CaseIterable, Identifiable, Sendable {
     
     public var displayName: String {
         switch self {
-        case .aac: return "AAC (Standart)"
+        case .aac: return "AAC (Standart - QuickTime Uyumlu)"
         case .mp3: return "MP3"
         case .opus: return "Opus"
         case .flac: return "FLAC (Kayıpsız)"
@@ -138,19 +158,19 @@ public enum TargetFrameRate: String, CaseIterable, Identifiable, Sendable {
         case .original: return "Orijinal FPS"
         case .fps24: return "24 fps (Sinema)"
         case .fps25: return "25 fps (PAL)"
-        case .fps30: return "30 fps (Standart)"
-        case .fps60: return "60 fps (Akıcı)"
+        case .fps30: return "30 fps (Web / TV)"
+        case .fps60: return "60 fps (Akıcı / Oyun)"
         }
     }
 }
 
 public struct ConversionConfig: Sendable, Equatable {
     public var container: ContainerFormat = .mp4
-    public var videoCodec: VideoCodec = .h264Hardware
-    public var audioCodec: AudioCodec = .aac
+    public var videoCodec: VideoCodec = .h264
+    public var crf: Int = 23
     public var resolution: TargetResolution = .original
     public var frameRate: TargetFrameRate = .original
-    public var crf: Int = 22
+    public var audioCodec: AudioCodec = .aac
     public var audioBitrateKbps: Int = 192
     
     public init() {}
