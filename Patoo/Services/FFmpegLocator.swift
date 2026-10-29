@@ -98,7 +98,7 @@ public final class FFmpegLocator: Sendable {
     }
     
     private func queryShellWhich(name: String) -> String? {
-        let process = Process()
+        let process = Process.makeSanitized()
         process.executableURL = URL(fileURLWithPath: "/bin/zsh")
         process.arguments = ["-l", "-c", "which \(name)"]
         
@@ -124,7 +124,7 @@ public final class FFmpegLocator: Sendable {
     }
     
     private func detectVersion(ffmpegURL: URL) -> String? {
-        let process = Process()
+        let process = Process.makeSanitized()
         process.executableURL = ffmpegURL
         process.arguments = ["-version"]
         
@@ -134,11 +134,11 @@ public final class FFmpegLocator: Sendable {
         
         do {
             try process.run()
-            process.waitUntilExit()
             let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
             if let output = String(data: data, encoding: .utf8) {
                 // First line is e.g. "ffmpeg version 7.1 Copyright (c) 2000-2024 the FFmpeg developers"
-                if let firstLine = output.components(separatedBy: .newlines).first {
+                if let firstLine = output.components(separatedBy: .newlines).first, !firstLine.isEmpty {
                     return firstLine
                 }
             }
@@ -147,5 +147,21 @@ public final class FFmpegLocator: Sendable {
         }
         
         return nil
+    }
+}
+
+extension Process {
+    /// Creates a Process instance with sanitized environment variables,
+    /// removing injected Xcode preview/debug dylibs (like DYLD_INSERT_LIBRARIES)
+    /// that cause standalone CLI processes to abort with code 6.
+    public static func makeSanitized() -> Process {
+        let process = Process()
+        var env = ProcessInfo.processInfo.environment
+        env.removeValue(forKey: "DYLD_INSERT_LIBRARIES")
+        env.removeValue(forKey: "DYLD_LIBRARY_PATH")
+        env.removeValue(forKey: "DYLD_FRAMEWORK_PATH")
+        env.removeValue(forKey: "OS_ACTIVITY_DT_MODE")
+        process.environment = env
+        return process
     }
 }

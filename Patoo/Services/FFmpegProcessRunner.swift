@@ -55,7 +55,7 @@ public actor FFmpegProcessRunner {
         }
         
         isCancelled = false
-        let process = Process()
+        let process = Process.makeSanitized()
         process.executableURL = ffmpegURL
         process.arguments = command.arguments
         

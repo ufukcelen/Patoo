@@ -63,19 +63,17 @@ public final class QueueManager {
     
     public func cancelJob(id: UUID) {
         if activeJobId == id {
+            let runner = activeRunner
             Task {
-                await activeRunner?.cancel()
+                await runner?.cancel()
             }
-        }
-        
-        if let index = jobs.firstIndex(where: { $0.id == id }) {
+            if let index = jobs.firstIndex(where: { $0.id == id }) {
+                jobs[index].status = .cancelled
+            }
+            // Let executeJob's termination flow cleanly finish,
+            // clear activeRunner/activeJobId, and call processNextIfPossible()
+        } else if let index = jobs.firstIndex(where: { $0.id == id }) {
             jobs[index].status = .cancelled
-        }
-        
-        if activeJobId == id {
-            activeJobId = nil
-            activeRunner = nil
-            processNextIfPossible()
         }
     }
     

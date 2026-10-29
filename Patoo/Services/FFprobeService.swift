@@ -50,7 +50,7 @@ public final class FFprobeService: Sendable {
         
         // Execute ffprobe asynchronously on a detached task
         return try await Task.detached {
-            let process = Process()
+            let process = Process.makeSanitized()
             process.executableURL = ffprobeURL
             process.arguments = [
                 "-v", "quiet",
