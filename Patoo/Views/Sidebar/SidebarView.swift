@@ -70,21 +70,48 @@ public struct SidebarView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 20)
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
             
-            // Navigation Items
-            VStack(spacing: 4) {
-                ForEach(NavigationSection.allCases) { section in
+            // Primary Navigation Items (The 6 Main Menus)
+            ScrollView {
+                VStack(spacing: 4) {
+                    ForEach(NavigationSection.allCases.filter { $0.isPrimaryMenuItem }) { section in
+                        SidebarItemRow(
+                            section: section,
+                            isSelected: selection == section,
+                            badgeCount: nil,
+                            isPinned: appState.isPinned(section)
+                        ) {
+                            selection = section
+                        }
+                    }
+                    
+                    Divider()
+                        .background(PatooTheme.borderSubtle)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 6)
+                    
+                    // Queue & Settings
                     SidebarItemRow(
-                        section: section,
-                        isSelected: selection == section,
-                        badgeCount: section == .queue ? (queueManager.pendingCount + (queueManager.isProcessing ? 1 : 0)) : nil
+                        section: .queue,
+                        isSelected: selection == .queue,
+                        badgeCount: (queueManager.pendingCount + (queueManager.isProcessing ? 1 : 0)),
+                        isPinned: appState.isPinned(.queue)
                     ) {
-                        selection = section
+                        selection = .queue
+                    }
+                    
+                    SidebarItemRow(
+                        section: .settings,
+                        isSelected: selection == .settings,
+                        badgeCount: nil,
+                        isPinned: appState.isPinned(.settings)
+                    ) {
+                        selection = .settings
                     }
                 }
+                .padding(.horizontal, 10)
             }
-            .padding(.horizontal, 10)
             
             Spacer()
             
@@ -146,7 +173,7 @@ public struct SidebarView: View {
             }
             .padding(12)
         }
-        .frame(width: 210)
+        .frame(width: 220)
         .background(PatooTheme.bgSidebar)
     }
 }
@@ -155,6 +182,7 @@ private struct SidebarItemRow: View {
     let section: NavigationSection
     let isSelected: Bool
     let badgeCount: Int?
+    var isPinned: Bool = false
     let action: () -> Void
     
     @State private var isHovered = false
@@ -173,6 +201,12 @@ private struct SidebarItemRow: View {
                 
                 Spacer()
                 
+                if isPinned && section.isPinnable {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(PatooTheme.cyan.opacity(0.7))
+                }
+                
                 if let count = badgeCount, count > 0 {
                     Text("\(count)")
                         .font(.system(size: 10, weight: .bold, design: .monospaced))
@@ -184,7 +218,7 @@ private struct SidebarItemRow: View {
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 7)
+            .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(isSelected ? PatooTheme.bgCardHover : (isHovered ? PatooTheme.bgCard.opacity(0.5) : Color.clear))

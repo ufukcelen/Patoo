@@ -30,15 +30,21 @@ public struct ConvertView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Video Dönüştür")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(PatooTheme.textPrimary)
+                // Header with Pin Button
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Dönüştürme")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        Text("Çıktı formatı, codec, çözünürlük, FPS ve ses seçenekleri.")
+                            .font(.system(size: 13))
+                            .foregroundColor(PatooTheme.textSecondary)
+                    }
                     
-                    Text("Videonuzu popüler formatlara, çözünürlüklere ve gelişmiş kodeklere dönüştürün.")
-                        .font(.system(size: 13))
-                        .foregroundColor(PatooTheme.textSecondary)
+                    Spacer()
+                    
+                    PatooPinButton(section: .convert, appState: appState)
                 }
                 
                 // Dropzone or Inspector

@@ -31,6 +31,11 @@ public final class FFprobeService: Sendable {
     public init() {}
     
     public func analyze(fileURL: URL) async throws -> MediaMetadata {
+        let (metadata, _) = try await analyzeWithRawJSON(fileURL: fileURL)
+        return metadata
+    }
+    
+    public func analyzeWithRawJSON(fileURL: URL) async throws -> (metadata: MediaMetadata, rawJSON: String) {
         guard let ffprobeURL = FFmpegLocator.shared.locate().ffprobeURL else {
             throw FFprobeError.ffprobeNotFound
         }
@@ -80,10 +85,12 @@ public final class FFprobeService: Sendable {
                 throw FFprobeError.processExecutionFailed("Çıkış kodu: \(process.terminationStatus). \(errStr)")
             }
             
+            let jsonString = String(data: stdoutData, encoding: .utf8) ?? "{}"
+            
             do {
                 let decoded = try JSONDecoder().decode(FFprobeOutput.self, from: stdoutData)
                 let metadata = MediaMetadata.from(ffprobe: decoded, fileURL: fileURL, fallbackFileSize: fileSize)
-                return metadata
+                return (metadata, jsonString)
             } catch {
                 throw FFprobeError.parsingFailed(error.localizedDescription)
             }

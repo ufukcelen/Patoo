@@ -9,20 +9,25 @@ public enum JobType: Sendable, Equatable {
     case convert(ConversionConfig)
     case compress(CompressionConfig)
     case extractAudio(AudioExtractionConfig)
+    case audioStudio(AudioStudioConfig)
+    case batch(name: String)
     
     public var title: String {
         switch self {
         case .convert: return "Dönüştürme"
         case .compress: return "Sıkıştırma"
         case .extractAudio: return "Ses Çıkarma"
+        case .audioStudio(let config): return "Ses Stüdyosu (\(config.mode.title))"
+        case .batch(let name): return "Toplu İşlem (\(name))"
         }
     }
     
     public var iconName: String {
         switch self {
         case .convert: return "arrow.triangle.2.circlepath"
-        case .compress: return "arrow.down.right.and.arrow.up.left"
-        case .extractAudio: return "waveform"
+        case .compress: return "gauge.with.needle"
+        case .extractAudio, .audioStudio: return "waveform"
+        case .batch: return "square.stack.3d.up"
         }
     }
 }
@@ -60,6 +65,7 @@ public struct MediaJob: Identifiable, Sendable, Equatable {
     public var targetURL: URL
     public let type: JobType
     public var status: JobStatus
+    public var progress: Double
     public var rawLog: String
     
     public init(
@@ -70,6 +76,7 @@ public struct MediaJob: Identifiable, Sendable, Equatable {
         targetURL: URL,
         type: JobType,
         status: JobStatus = .pending,
+        progress: Double = 0.0,
         rawLog: String = ""
     ) {
         self.id = id
@@ -79,6 +86,7 @@ public struct MediaJob: Identifiable, Sendable, Equatable {
         self.targetURL = targetURL
         self.type = type
         self.status = status
+        self.progress = progress
         self.rawLog = rawLog
     }
     
@@ -86,12 +94,7 @@ public struct MediaJob: Identifiable, Sendable, Equatable {
         sourceURL.lastPathComponent
     }
     
-    public var progress: Double {
-        switch status {
-        case .pending: return 0.0
-        case .processing(let progress, _, _, _): return progress
-        case .completed: return 1.0
-        case .failed, .cancelled: return 0.0
-        }
+    public var targetFileName: String {
+        targetURL.lastPathComponent
     }
 }

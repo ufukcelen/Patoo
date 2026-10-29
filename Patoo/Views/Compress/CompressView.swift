@@ -30,15 +30,21 @@ public struct CompressView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Video Sıkıştır")
-                        .font(.system(size: 24, weight: .bold))
-                        .foregroundColor(PatooTheme.textPrimary)
+                // Header with Pin Button
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Sıkıştırma")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        Text("Kalite modu, hedef dosya boyutu, yaklaşık sonuç ve kalite karşılaştırması.")
+                            .font(.system(size: 13))
+                            .foregroundColor(PatooTheme.textSecondary)
+                    }
                     
-                    Text("Görsel kaliteyi koruyarak dosya boyutunu akıllıca küçültün.")
-                        .font(.system(size: 13))
-                        .foregroundColor(PatooTheme.textSecondary)
+                    Spacer()
+                    
+                    PatooPinButton(section: .compress, appState: appState)
                 }
                 
                 // Dropzone or Inspector
@@ -60,7 +66,7 @@ public struct CompressView: View {
                 if let currentFile = selectedFileURL {
                     // Compression Options Card
                     VStack(alignment: .leading, spacing: 18) {
-                        Text("Sıkıştırma Profili")
+                        Text("Sıkıştırma Profili & Kalite Modu")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(PatooTheme.textPrimary)
                         
@@ -74,6 +80,65 @@ public struct CompressView: View {
                                     config.profile = profile
                                 }
                             }
+                        }
+                        
+                        Divider().background(PatooTheme.borderSubtle)
+                        
+                        // Size & Quality Estimation HUD
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Yaklaşık Sonuç & Kalite Karşılaştırması")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(PatooTheme.textPrimary)
+                                
+                                Spacer()
+                                
+                                Text(estimatedSavingBadge)
+                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                    .foregroundColor(PatooTheme.success)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(PatooTheme.success.opacity(0.15))
+                                    .cornerRadius(4)
+                            }
+                            
+                            HStack(spacing: 16) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Orijinal Boyut")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(PatooTheme.textTertiary)
+                                    Text(metadata?.formattedFileSize ?? "Bilinmiyor")
+                                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                        .foregroundColor(PatooTheme.textPrimary)
+                                }
+                                
+                                Image(systemName: "arrow.right")
+                                    .foregroundColor(PatooTheme.cyan)
+                                    .font(.system(size: 12))
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Tahmini Çıktı Boyutu")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(PatooTheme.textTertiary)
+                                    Text(estimatedSizeText)
+                                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                        .foregroundColor(PatooTheme.cyan)
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("Tahmini Tasarruf")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(PatooTheme.textTertiary)
+                                    Text(estimatedSavingText)
+                                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                                        .foregroundColor(PatooTheme.success)
+                                }
+                            }
+                            .padding(12)
+                            .background(PatooTheme.bgDark)
+                            .cornerRadius(6)
                         }
                         
                         Divider().background(PatooTheme.borderSubtle)
@@ -158,7 +223,7 @@ public struct CompressView: View {
                         
                         PatooButton(
                             "Sıkıştırmayı Başlat",
-                            icon: "arrow.down.right.and.arrow.up.left",
+                            icon: "gauge.with.needle",
                             style: .primary
                         ) {
                             enqueueCompression(fileURL: currentFile)
@@ -169,6 +234,43 @@ public struct CompressView: View {
             .padding(24)
         }
         .background(PatooTheme.bgDark)
+    }
+    
+    private var estimatedSizeText: String {
+        guard let originalBytes = metadata?.fileSize, originalBytes > 0 else {
+            return "~%40-%70 Daha Küçük"
+        }
+        let ratio: Double
+        switch config.profile {
+        case .small: ratio = 0.35
+        case .balanced: ratio = 0.55
+        case .highQuality: ratio = 0.80
+        case .custom:
+            let factor = Double(config.customCRF - 16) / 20.0
+            ratio = max(0.25, 0.90 - (factor * 0.65))
+        }
+        let estBytes = Int64(Double(originalBytes) * ratio)
+        return ByteCountFormatter.string(fromByteCount: estBytes, countStyle: .file)
+    }
+    
+    private var estimatedSavingText: String {
+        switch config.profile {
+        case .small: return "~%65 Tasarruf"
+        case .balanced: return "~%45 Tasarruf"
+        case .highQuality: return "~%20 Tasarruf"
+        case .custom:
+            let factor = Int((1.0 - (Double(config.customCRF - 16) / 20.0)) * 60)
+            return "~%\(max(15, factor)) Tasarruf"
+        }
+    }
+    
+    private var estimatedSavingBadge: String {
+        switch config.profile {
+        case .small: return "ULTRA SIKIŞTIRMA"
+        case .balanced: return "DENGELİ OPTİMUM"
+        case .highQuality: return "YÜKSEK KALİTE"
+        case .custom: return "ÖZEL CRF \(config.customCRF)"
+        }
     }
     
     private func analyzeFile(_ url: URL) {
@@ -240,7 +342,7 @@ private struct CompressionProfileCard: View {
                     .fixedSize(horizontal: false, vertical: true)
                 
                 HStack {
-                    Text("~%20-%60 Boyut")
+                    Text("~%20-%65 Boyut")
                         .font(.system(size: 9, weight: .semibold, design: .monospaced))
                         .foregroundColor(PatooTheme.textTertiary)
                     Spacer()

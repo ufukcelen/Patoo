@@ -45,10 +45,20 @@ struct ContentView: View {
                             queueManager: queueManager,
                             appState: appState
                         )
-                    case .trim:
-                        TrimPlaceholderView()
-                    case .audioExtract:
-                        AudioExtractView(
+                    case .audioStudio:
+                        AudioStudioView(
+                            selectedSection: $appState.selectedSection,
+                            queueManager: queueManager,
+                            appState: appState
+                        )
+                    case .batch:
+                        BatchProcessView(
+                            selectedSection: $appState.selectedSection,
+                            queueManager: queueManager,
+                            appState: appState
+                        )
+                    case .mediaInfo:
+                        MediaInfoView(
                             selectedSection: $appState.selectedSection,
                             queueManager: queueManager,
                             appState: appState
@@ -73,21 +83,19 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(
-                        Capsule()
-                            .fill(PatooTheme.bgCardHover)
-                            .shadow(color: Color.black.opacity(0.4), radius: 10, y: 4)
-                    )
+                    .background(PatooTheme.bgCard)
+                    .cornerRadius(8)
                     .overlay(
-                        Capsule()
-                            .stroke(toast.isError ? PatooTheme.danger.opacity(0.5) : PatooTheme.borderCyan, lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(toast.isError ? PatooTheme.danger.opacity(0.5) : PatooTheme.cyan.opacity(0.5), lineWidth: 1)
                     )
+                    .shadow(color: Color.black.opacity(0.3), radius: 10, y: 5)
                     .padding(.bottom, 24)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
         }
-        .frame(minWidth: 960, minHeight: 650)
+        .frame(minWidth: 980, minHeight: 640)
         .background(PatooTheme.bgDark)
         .preferredColorScheme(.dark)
         .sheet(isPresented: $updateManager.showWhatsNewModal) {
@@ -97,8 +105,4 @@ struct ContentView: View {
             AppUpdateSheet(updateManager: updateManager)
         }
     }
-}
-
-#Preview {
-    ContentView()
 }

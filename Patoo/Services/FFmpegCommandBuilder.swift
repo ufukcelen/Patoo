@@ -47,7 +47,6 @@ public enum FFmpegCommandBuilder {
         case .copy:
             args.append(contentsOf: ["-c:v", "copy"])
             if isAppleContainer {
-                // If copying into MP4/MOV, ensure hvc1 tag for HEVC compatibility with QuickTime
                 args.append(contentsOf: ["-tag:v", "hvc1"])
             }
         case .h264Hardware:
@@ -118,7 +117,7 @@ public enum FFmpegCommandBuilder {
             args.append(contentsOf: ["-c:a", "flac"])
         }
         
-        // Faststart for MP4 and MOV containers (moves moov atom to beginning for QuickTime & web playback)
+        // QuickTime Player container compatibility
         if isAppleContainer {
             args.append(contentsOf: ["-movflags", "+faststart"])
         }
@@ -141,10 +140,9 @@ public enum FFmpegCommandBuilder {
             "-i", inputURL.path
         ]
         
-        let crf = config.effectiveCRF
+        let crf = config.profile == .custom ? config.customCRF : config.profile.defaultCRF
         
         if config.useHardwareAcceleration {
-            // Apple Silicon VideoToolbox
             let videoBitrate: String
             switch config.profile {
             case .small: videoBitrate = "2000k"
@@ -158,7 +156,6 @@ public enum FFmpegCommandBuilder {
                 "-pix_fmt", "yuv420p"
             ])
         } else {
-            // High efficiency software libx264
             args.append(contentsOf: [
                 "-c:v", "libx264",
                 "-crf", "\(crf)",
@@ -167,21 +164,17 @@ public enum FFmpegCommandBuilder {
             ])
         }
         
-        // Optional downscale
         if config.downscaleTo1080pIfLarger {
             args.append(contentsOf: ["-vf", "scale='min(1920,iw)':-2"])
         }
         
-        // Audio compression
         let audioBitrate = config.profile.defaultAudioBitrate
         args.append(contentsOf: [
             "-c:a", "aac",
             "-b:a", "\(audioBitrate)k"
         ])
         
-        // Faststart for QuickTime compatibility & web streaming
         args.append(contentsOf: ["-movflags", "+faststart"])
-        
         args.append(outputURL.path)
         return FFmpegCommand(arguments: args, outputURL: outputURL)
     }
@@ -199,10 +192,9 @@ public enum FFmpegCommandBuilder {
             "-progress", "pipe:1",
             "-y",
             "-i", inputURL.path,
-            "-vn" // Discard video stream
+            "-vn"
         ]
         
-        // Check for passthrough compatibility
         let isPassthroughCompatible: Bool = {
             guard config.tryPassthroughIfCompatible, let sourceCodec = sourceAudioCodec?.lowercased() else {
                 return false
@@ -226,6 +218,95 @@ public enum FFmpegCommandBuilder {
         return FFmpegCommand(arguments: args, outputURL: outputURL)
     }
     
+    // MARK: - Audio Studio Operations
+    public static func buildAudioStudioCommand(
+        inputURL: URL,
+        outputURL: URL,
+        config: AudioStudioConfig,
+        sourceMetadata: MediaMetadata? = nil
+    ) -> FFmpegCommand {
+        switch config.mode {
+        case .extract:
+            let primaryAudio = sourceMetadata?.primaryAudio?.codec
+            return buildAudioExtractCommand(
+                inputURL: inputURL,
+                outputURL: outputURL,
+                config: config.extractionConfig,
+                sourceAudioCodec: primaryAudio
+            )
+            
+        case .removeAudio:
+            let args = [
+                "-hide_banner",
+                "-nostdin",
+                "-progress", "pipe:1",
+                "-y",
+                "-i", inputURL.path,
+                "-c:v", "copy",
+                "-an",
+                "-movflags", "+faststart",
+                outputURL.path
+            ]
+            return FFmpegCommand(arguments: args, outputURL: outputURL)
+            
+        case .normalize:
+            let lufs = String(format: "%.1f", config.targetLUFS)
+            let args = [
+                "-hide_banner",
+                "-nostdin",
+                "-progress", "pipe:1",
+                "-y",
+                "-i", inputURL.path,
+                "-c:v", "copy",
+                "-af", "loudnorm=I=\(lufs):TP=-1.5:LRA=11",
+                "-c:a", "aac",
+                "-b:a", "256k",
+                "-movflags", "+faststart",
+                outputURL.path
+            ]
+            return FFmpegCommand(arguments: args, outputURL: outputURL)
+            
+        case .volume:
+            let gain = config.volumeGainDB >= 0 ? "+\(String(format: "%.1f", config.volumeGainDB))dB" : "\(String(format: "%.1f", config.volumeGainDB))dB"
+            let args = [
+                "-hide_banner",
+                "-nostdin",
+                "-progress", "pipe:1",
+                "-y",
+                "-i", inputURL.path,
+                "-c:v", "copy",
+                "-af", "volume=\(gain)",
+                "-c:a", "aac",
+                "-b:a", "256k",
+                "-movflags", "+faststart",
+                outputURL.path
+            ]
+            return FFmpegCommand(arguments: args, outputURL: outputURL)
+            
+        case .fade:
+            let duration = sourceMetadata?.durationSeconds ?? 60.0
+            let fadeIn = config.fadeInDuration
+            let fadeOut = config.fadeOutDuration
+            let startOut = max(0, duration - fadeOut)
+            let filter = "afade=t=in:ss=0:d=\(String(format: "%.1f", fadeIn)),afade=t=out:st=\(String(format: "%.1f", startOut)):d=\(String(format: "%.1f", fadeOut))"
+            
+            let args = [
+                "-hide_banner",
+                "-nostdin",
+                "-progress", "pipe:1",
+                "-y",
+                "-i", inputURL.path,
+                "-c:v", "copy",
+                "-af", filter,
+                "-c:a", "aac",
+                "-b:a", "256k",
+                "-movflags", "+faststart",
+                outputURL.path
+            ]
+            return FFmpegCommand(arguments: args, outputURL: outputURL)
+        }
+    }
+    
     // MARK: - Safe Target URL Generation
     public static func generateSafeTargetURL(
         sourceURL: URL,
@@ -238,34 +319,38 @@ public enum FFmpegCommandBuilder {
         let dir = destinationDirectory ?? sourceURL.deletingLastPathComponent()
         let cleanExt = targetExtension.replacingOccurrences(of: ".", with: "").trimmingCharacters(in: .whitespaces)
         
-        let rawName: String
+        let baseName: String
         if let custom = customFileName?.trimmingCharacters(in: .whitespacesAndNewlines), !custom.isEmpty {
-            if custom.lowercased().hasSuffix("." + cleanExt.lowercased()) {
-                rawName = String(custom.dropLast(cleanExt.count + 1))
+            let customURL = URL(fileURLWithPath: custom)
+            if customURL.pathExtension.lowercased() == cleanExt.lowercased() {
+                baseName = customURL.deletingPathExtension().lastPathComponent
             } else {
-                rawName = custom
+                baseName = custom
             }
         } else {
-            let baseName = sourceURL.deletingPathExtension().lastPathComponent
-            if let suf = suffix, !suf.isEmpty {
-                rawName = "\(baseName)_\(suf)"
+            let originalStem = sourceURL.deletingPathExtension().lastPathComponent
+            if let s = suffix, !s.isEmpty {
+                baseName = "\(originalStem)_\(s)"
             } else {
-                rawName = baseName
+                baseName = originalStem
             }
         }
         
-        var target = dir.appendingPathComponent("\(rawName).\(cleanExt)")
+        let fileManager = FileManager.default
+        let candidate = dir.appendingPathComponent("\(baseName).\(cleanExt)")
         
-        if overwrite || !FileManager.default.fileExists(atPath: target.path) {
-            return target
+        if overwrite || !fileManager.fileExists(atPath: candidate.path) {
+            return candidate
         }
         
         var counter = 1
-        while FileManager.default.fileExists(atPath: target.path) {
-            target = dir.appendingPathComponent("\(rawName)_\(counter).\(cleanExt)")
+        while true {
+            let indexedName = "\(baseName)_\(counter).\(cleanExt)"
+            let indexedURL = dir.appendingPathComponent(indexedName)
+            if !fileManager.fileExists(atPath: indexedURL.path) {
+                return indexedURL
+            }
             counter += 1
         }
-        
-        return target
     }
 }

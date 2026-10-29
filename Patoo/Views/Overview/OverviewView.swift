@@ -10,6 +10,10 @@ public struct OverviewView: View {
     var queueManager: QueueManager
     var appState: AppState
     
+    @State private var droppedFile: URL? = nil
+    @State private var isAnalyzing: Bool = false
+    @State private var fileMetadata: MediaMetadata? = nil
+    
     public init(
         selectedSection: Binding<NavigationSection>,
         queueManager: QueueManager,
@@ -29,7 +33,7 @@ public struct OverviewView: View {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    Text("FFmpeg ve FFprobe motoru ile yüksek performanslı yerel medya işleme merkezi.")
+                    Text("Dosya ekleme, son işlemler, hızlı eylemler ve genel işlem durumu.")
                         .font(.system(size: 13))
                         .foregroundColor(PatooTheme.textSecondary)
                 }
@@ -118,39 +122,148 @@ public struct OverviewView: View {
                     .patooCard()
                 }
                 
-                // Quick Action Cards
+                // Quick Actions (Empty by default, populated dynamically via user pin)
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Hızlı İşlemler")
+                    HStack {
+                        Text("Hızlı Eylemler")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                        
+                        if !appState.pinnedSections.isEmpty {
+                            Text("\(appState.pinnedSections.count) Sabitlendi")
+                                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                .foregroundColor(PatooTheme.cyan)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(PatooTheme.cyan.opacity(0.15))
+                                .cornerRadius(4)
+                        }
+                        
+                        Spacer()
+                    }
+                    
+                    if appState.pinnedSections.isEmpty {
+                        // Empty state as requested by user
+                        HStack(spacing: 16) {
+                            ZStack {
+                                Circle()
+                                    .fill(PatooTheme.cyan.opacity(0.08))
+                                    .frame(width: 44, height: 44)
+                                
+                                Image(systemName: "pin")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(PatooTheme.cyan.opacity(0.7))
+                            }
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Henüz Hızlı Eylem Sabitlenmedi")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(PatooTheme.textPrimary)
+                                
+                                Text("Diğer menülerin (Dönüştürme, Sıkıştırma, Ses Stüdyosu vb.) sağ üst köşesindeki 📌 butonuna tıklayarak sık kullandığınız eylemleri buraya sabitleyebilirsiniz.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(PatooTheme.textSecondary)
+                            }
+                            
+                            Spacer()
+                        }
+                        .padding(18)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(PatooTheme.bgCard)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                                .foregroundColor(PatooTheme.borderSubtle)
+                        )
+                    } else {
+                        // User-pinned actions grid
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 240, maximum: 340), spacing: 14)], spacing: 14) {
+                            ForEach(appState.pinnedSections) { section in
+                                PinnedActionCard(
+                                    section: section,
+                                    onSelect: {
+                                        selectedSection = section
+                                    },
+                                    onUnpin: {
+                                        appState.togglePin(section)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                // Quick Media Dropzone on Overview
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Hızlı Dosya Ekleme")
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(PatooTheme.textPrimary)
                     
-                    HStack(spacing: 16) {
-                        QuickActionCard(
-                            title: "Video Dönüştür",
-                            description: "MP4, MOV, MKV, WebM formatları arasında kayıpsız veya optimize dönüştürme.",
-                            icon: "arrow.triangle.2.circlepath",
-                            accentColor: PatooTheme.cyan
-                        ) {
-                            selectedSection = .convert
+                    if let file = droppedFile, let meta = fileMetadata {
+                        VStack(alignment: .leading, spacing: 12) {
+                            MediaInspectorView(metadata: meta) {
+                                droppedFile = nil
+                                fileMetadata = nil
+                            }
+                            
+                            HStack(spacing: 12) {
+                                Button("Dönüştürmeye Gönder") {
+                                    selectedSection = .convert
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(PatooTheme.cyan)
+                                .cornerRadius(6)
+                                
+                                Button("Sıkıştırmaya Gönder") {
+                                    selectedSection = .compress
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(PatooTheme.textPrimary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(PatooTheme.bgCard)
+                                .cornerRadius(6)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(PatooTheme.borderSubtle, lineWidth: 1)
+                                )
+                                
+                                Button("Ses Stüdyosuna Gönder") {
+                                    selectedSection = .audioStudio
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(PatooTheme.textPrimary)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 7)
+                                .background(PatooTheme.bgCard)
+                                .cornerRadius(6)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(PatooTheme.borderSubtle, lineWidth: 1)
+                                )
+                                
+                                Button("Ayrıntılı Medya Bilgisi") {
+                                    selectedSection = .mediaInfo
+                                }
+                                .buttonStyle(.plain)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(PatooTheme.cyan)
+                            }
                         }
-                        
-                        QuickActionCard(
-                            title: "Video Sıkıştır",
-                            description: "Dosya boyutunu kalite kaybını minimumda tutarak güvenle küçültün.",
-                            icon: "arrow.down.right.and.arrow.up.left",
-                            accentColor: PatooTheme.violet
-                        ) {
-                            selectedSection = .compress
-                        }
-                        
-                        QuickActionCard(
-                            title: "Ses Çıkar",
-                            description: "Videolardan sesi MP3, AAC veya kayıpsız FLAC/WAV formatında ayıklayın.",
-                            icon: "waveform",
-                            accentColor: PatooTheme.blue
-                        ) {
-                            selectedSection = .audioExtract
-                        }
+                    } else {
+                        FileDropZone(
+                            title: "Bir Medya Dosyası Bırakın",
+                            subtitle: "İşlem seçmek veya ayrıntılı analiz yapmak için dosyayı sürükleyin",
+                            isAnalyzing: isAnalyzing,
+                            onFileSelected: handleQuickDrop
+                        )
                     }
                 }
                 
@@ -206,54 +319,87 @@ public struct OverviewView: View {
         }
         .background(PatooTheme.bgDark)
     }
+    
+    private func handleQuickDrop(_ url: URL) {
+        droppedFile = url
+        isAnalyzing = true
+        
+        Task {
+            do {
+                let meta = try await FFprobeService.shared.analyze(fileURL: url)
+                self.fileMetadata = meta
+                self.isAnalyzing = false
+            } catch {
+                self.isAnalyzing = false
+                appState.showToast("Dosya analizi başarısız: \(error.localizedDescription)", isError: true)
+            }
+        }
+    }
 }
 
-private struct QuickActionCard: View {
-    let title: String
-    let description: String
-    let icon: String
-    let accentColor: Color
-    let action: () -> Void
+private struct PinnedActionCard: View {
+    let section: NavigationSection
+    let onSelect: () -> Void
+    let onUnpin: () -> Void
     
     @State private var isHovered = false
     
     var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(accentColor.opacity(0.15))
-                        .frame(width: 40, height: 40)
+        Button(action: onSelect) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(PatooTheme.cyan.opacity(0.12))
+                            .frame(width: 32, height: 32)
+                        
+                        Image(systemName: section.iconName)
+                            .font(.system(size: 15))
+                            .foregroundColor(PatooTheme.cyan)
+                    }
                     
-                    Image(systemName: icon)
-                        .font(.system(size: 18))
-                        .foregroundColor(accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(section.title)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(PatooTheme.textPrimary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: onUnpin) {
+                        Image(systemName: "pin.slash")
+                            .font(.system(size: 11))
+                            .foregroundColor(PatooTheme.textTertiary)
+                            .padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Hızlı Eylemlerden Kaldır")
                 }
                 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(PatooTheme.textPrimary)
-                    
-                    Text(description)
-                        .font(.system(size: 11))
-                        .foregroundColor(PatooTheme.textSecondary)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(section.subtitle)
+                    .font(.system(size: 11))
+                    .foregroundColor(PatooTheme.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 
-                HStack(spacing: 4) {
-                    Text("Başla")
-                        .font(.system(size: 11, weight: .semibold))
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9))
+                HStack {
+                    Spacer()
+                    HStack(spacing: 4) {
+                        Text("Aç")
+                            .font(.system(size: 11, weight: .semibold))
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 9))
+                    }
+                    .foregroundColor(PatooTheme.cyan)
                 }
-                .foregroundColor(accentColor)
-                .padding(.top, 4)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .patooCard(isHovered: isHovered)
+            .padding(14)
+            .background(isHovered ? PatooTheme.bgCardHover : PatooTheme.bgCard)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isHovered ? PatooTheme.cyan.opacity(0.4) : PatooTheme.borderSubtle, lineWidth: 1)
+            )
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }

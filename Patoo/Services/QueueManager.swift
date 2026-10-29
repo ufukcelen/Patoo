@@ -3,7 +3,7 @@
 //  Patoo
 //
 
-import SwiftUI
+import Foundation
 import Observation
 
 @Observable
@@ -14,9 +14,10 @@ public final class QueueManager {
     public var jobs: [MediaJob] = []
     public var activeJobId: UUID? = nil
     public var isProcessing: Bool = false
+    public var isPaused: Bool = false
     
-    private var runnerTask: Task<Void, Never>?
-    private var activeRunner: FFmpegProcessRunner?
+    private var activeRunner: FFmpegProcessRunner? = nil
+    private var runnerTask: Task<Void, Never>? = nil
     
     public init() {}
     
@@ -61,6 +62,21 @@ public final class QueueManager {
         processNextIfPossible()
     }
     
+    public func pauseQueue() {
+        isPaused = true
+    }
+    
+    public func resumeQueue() {
+        isPaused = false
+        processNextIfPossible()
+    }
+    
+    public func cancelAll() {
+        for job in jobs where !job.status.isTerminal {
+            cancelJob(id: job.id)
+        }
+    }
+    
     public func cancelJob(id: UUID) {
         if activeJobId == id {
             let runner = activeRunner
@@ -70,8 +86,6 @@ public final class QueueManager {
             if let index = jobs.firstIndex(where: { $0.id == id }) {
                 jobs[index].status = .cancelled
             }
-            // Let executeJob's termination flow cleanly finish,
-            // clear activeRunner/activeJobId, and call processNextIfPossible()
         } else if let index = jobs.firstIndex(where: { $0.id == id }) {
             jobs[index].status = .cancelled
         }
@@ -101,7 +115,7 @@ public final class QueueManager {
     
     // MARK: - Process Execution Loop
     public func processNextIfPossible() {
-        guard !isProcessing else { return }
+        guard !isProcessing && !isPaused else { return }
         guard let nextIndex = jobs.firstIndex(where: { $0.status == .pending }) else {
             activeJobId = nil
             isProcessing = false
@@ -148,6 +162,20 @@ public final class QueueManager {
                 config: config,
                 sourceAudioCodec: job.sourceMetadata?.primaryAudio?.codec
             )
+        case .audioStudio(let config):
+            command = FFmpegCommandBuilder.buildAudioStudioCommand(
+                inputURL: job.sourceURL,
+                outputURL: job.targetURL,
+                config: config,
+                sourceMetadata: job.sourceMetadata
+            )
+        case .batch:
+            // Standard conversion fallback for generic batch job
+            command = FFmpegCommandBuilder.buildConvertCommand(
+                inputURL: job.sourceURL,
+                outputURL: job.targetURL,
+                config: ConversionConfig()
+            )
         }
         
         // 2. Total duration from metadata or 1.0
@@ -178,28 +206,22 @@ public final class QueueManager {
                         guard let self = self,
                               let idx = self.jobs.firstIndex(where: { $0.id == id }) else { return }
                         self.jobs[idx].rawLog.append(chunk)
-                        // Keep last 15KB of log to prevent memory blowup
-                        if self.jobs[idx].rawLog.count > 15000 {
-                            self.jobs[idx].rawLog = String(self.jobs[idx].rawLog.suffix(10000))
-                        }
                     }
                 }
             )
             
-            // Mark completed
-            if let idx = jobs.firstIndex(where: { $0.id == id }) {
-                jobs[idx].status = .completed(outputURL: job.targetURL, finishedAt: Date())
+            // Success
+            if let idx = self.jobs.firstIndex(where: { $0.id == id }) {
+                self.jobs[idx].status = .completed(outputURL: job.targetURL, finishedAt: Date())
+                self.jobs[idx].progress = 1.0
             }
         } catch {
-            if let idx = jobs.firstIndex(where: { $0.id == id }) {
-                if let execErr = error as? FFmpegExecutionError, case .cancelled = execErr {
-                    jobs[idx].status = .cancelled
+            if let idx = self.jobs.firstIndex(where: { $0.id == id }) {
+                if case .cancelled = self.jobs[idx].status {
+                    // Retain cancelled state
                 } else {
-                    let snippet = jobs[idx].rawLog.suffix(300)
-                    jobs[idx].status = .failed(
-                        error: error.localizedDescription,
-                        logSnippet: String(snippet)
-                    )
+                    let snippet = self.jobs[idx].rawLog.components(separatedBy: "\n").suffix(15).joined(separator: "\n")
+                    self.jobs[idx].status = .failed(error: error.localizedDescription, logSnippet: snippet)
                 }
             }
         }
@@ -208,7 +230,7 @@ public final class QueueManager {
         self.activeJobId = nil
         self.isProcessing = false
         
-        // Advance to next pending item
+        // Chain next job
         processNextIfPossible()
     }
 }
